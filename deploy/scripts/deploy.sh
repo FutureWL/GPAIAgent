@@ -22,8 +22,13 @@ APP_DIR="/home/weilai/apps/gpaia-agent-${ENV}"
 REPO_DIR="/home/weilai/repos/gpaia-agent.git"
 ECOSYSTEM="$DEPLOY_DIR/pm2/ecosystem.${ENV}.config.js"
 
+# CRITICAL: change to app directory FIRST, before anything else
+# This script may be called from bare repo directory via git hook
+cd "$APP_DIR"
+
 log "=========================================="
 log "Starting ${ENV} deployment"
+log "CWD: $(pwd)"
 log "=========================================="
 
 # Create app directory if it doesn't exist
@@ -36,43 +41,35 @@ fi
 # Pull latest code (use fetch+reset instead of pull to handle bare repo as source)
 log "Pulling latest code..."
 
-# Run git operations in a new bash process to ensure clean environment
-bash -c "
-    set -e
-    cd '$APP_DIR'
-    pwd
-    if ! git remote | grep -q '^deploy\$'; then
-        git remote add deploy '$REPO_DIR'
-    fi
-    DEPLOY_BRANCH=main
-    git fetch deploy
-    CURRENT_REV=\$(git rev-parse HEAD 2>/dev/null || echo '0000000000000000000000000000000000000000')
-    DEPLOY_REV=\$(git rev-parse deploy/\${DEPLOY_BRANCH} 2>/dev/null || echo '0000000000000000000000000000000000000000')
-    if [ \"\$CURRENT_REV\" != \"\$DEPLOY_REV\" ]; then
-        git reset --hard \"\$DEPLOY_REV\"
-        git clean -fd
-        echo \"Code updated: \$DEPLOY_REV\"
-    else
-        echo \"Already at latest revision: \$DEPLOY_REV\"
-    fi
-"
+if ! git remote | grep -q "^deploy$"; then
+    git remote add deploy "$REPO_DIR"
+fi
+DEPLOY_BRANCH=main
+git fetch deploy
+CURRENT_REV=$(git rev-parse HEAD 2>/dev/null || echo "0000000000000000000000000000000000000000")
+DEPLOY_REV=$(git rev-parse "deploy/${DEPLOY_BRANCH}" 2>/dev/null || echo "0000000000000000000000000000000000000000")
+if [ "$CURRENT_REV" != "$DEPLOY_REV" ]; then
+    git reset --hard "$DEPLOY_REV"
+    git clean -fd
+    log "Code updated: $DEPLOY_REV"
+else
+    log "Already at latest revision: $DEPLOY_REV"
+fi
 
-# Install dependencies (outside subshell, in APP_DIR)
+# Install dependencies
 log "Installing dependencies..."
-cd "$APP_DIR"
 pnpm install --frozen-lockfile
 log "Dependencies installed"
 
 # Generate Prisma client (not in source control)
 log "Generating Prisma client..."
-cd "$APP_DIR/apps/api"
+cd apps/api
 pnpm prisma generate
-cd "$APP_DIR"
+cd ..
 log "Prisma client generated"
 
 # Build
 log "Building..."
-cd "$APP_DIR"
 pnpm build
 log "Build complete"
 
