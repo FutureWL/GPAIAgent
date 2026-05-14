@@ -47,7 +47,11 @@ log "Pulling latest code..."
 if ! git remote | grep -q "^deploy$"; then
     git remote add deploy "$REPO_DIR"
 fi
-DEPLOY_BRANCH=main
+if [ "$ENV" = "dev" ]; then
+    DEPLOY_BRANCH="dev"
+else
+    DEPLOY_BRANCH="main"
+fi
 git fetch deploy
 CURRENT_REV=$(git rev-parse HEAD 2>/dev/null || echo "0000000000000000000000000000000000000000")
 DEPLOY_REV=$(git rev-parse "deploy/${DEPLOY_BRANCH}" 2>/dev/null || echo "0000000000000000000000000000000000000000")
