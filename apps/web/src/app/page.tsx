@@ -37,6 +37,11 @@ export default function HomePage() {
       <div className="text-center">
         <h1 className="text-5xl font-bold mb-4">GPAIAgent</h1>
         <p className="text-xl text-slate-300">短线炒股辅助平台</p>
+        <div className="mt-4">
+          <Link href="/strategies" className="text-slate-300 underline underline-offset-4">
+            进入策略广场
+          </Link>
+        </div>
         <div className="mt-6 text-slate-300">
           {loading ? (
             <div className="text-slate-400">加载中...</div>
