@@ -31,20 +31,19 @@ export class MembershipService {
   }
 
   async activate(userId: string, level: 'NORMAL' | 'PRIVATE', type: 'TRIAL' | 'MONTHLY') {
-    const expiresAt = new Date();
-    expiresAt.setDate(expiresAt.getDate() + (type === 'TRIAL' ? 7 : 30));
+    const expiredAt = new Date();
+    expiredAt.setDate(expiredAt.getDate() + (type === 'TRIAL' ? 7 : 30));
     const m = await this.prismaService.membership.upsert({
       where: { userId },
-      create: { userId, level, type, status: 'ACTIVE', expiresAt },
-      update: { level, type, status: 'ACTIVE', expiresAt },
+      create: { userId, level, type, status: 'ACTIVE', expiredAt },
+      update: { level, type, status: 'ACTIVE', expiredAt },
     });
     return m;
   }
 
-  async checkAccess(userId: string, requiredLevel: 'NORMAL' | 'PRIVATE' = 'NORMAL') {
+  async checkAccess(userId: string) {
     const m = await this.prismaService.membership.findUnique({ where: { userId } });
-    if (!m || m.status !== 'ACTIVE' || m.expiresAt < new Date()) return false;
-    if (requiredLevel === 'PRIVATE' && m.level !== 'PRIVATE') return false;
-    return true;
+    if (!m || m.status !== 'ACTIVE' || m.expiredAt < new Date()) return { hasAccess: false, level: null };
+    return { hasAccess: true, level: m.level };
   }
 }
