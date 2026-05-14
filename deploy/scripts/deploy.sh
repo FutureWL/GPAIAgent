@@ -24,7 +24,6 @@ ECOSYSTEM="$DEPLOY_DIR/pm2/ecosystem.${ENV}.config.js"
 
 log "=========================================="
 log "Starting ${ENV} deployment"
-log "CWD: $(pwd) | USER: $(whoami) | SHELL: $SHELL"
 log "=========================================="
 
 # Create app directory if it doesn't exist
@@ -36,29 +35,34 @@ fi
 
 # Pull latest code (use fetch+reset instead of pull to handle bare repo as source)
 log "Pulling latest code..."
-cd "$APP_DIR" || { log "FATAL: cannot cd to $APP_DIR"; exit 1; }
 
-# Ensure bare repo is configured as remote
-if ! git remote | grep -q "^deploy$"; then
-    git remote add deploy "$REPO_DIR"
-fi
+# Change to app directory - use a subshell to avoid cwd issues
+(
+    cd "$APP_DIR" || { log "FATAL: cannot cd to $APP_DIR"; exit 1; }
 
-# For both dev and prod, track deploy/main
-DEPLOY_BRANCH="main"
-git fetch deploy
-CURRENT_REV=$(git rev-parse HEAD 2>/dev/null || echo "0000000000000000000000000000000000000000")
-DEPLOY_REV=$(git rev-parse deploy/${DEPLOY_BRANCH} 2>/dev/null || echo "0000000000000000000000000000000000000000")
+    # Ensure bare repo is configured as remote
+    if ! git remote | grep -q "^deploy$"; then
+        git remote add deploy "$REPO_DIR"
+    fi
 
-if [ "$CURRENT_REV" != "$DEPLOY_REV" ]; then
-    git reset --hard "$DEPLOY_REV"
-    git clean -fd
-    log "Code updated: $DEPLOY_REV"
-else
-    log "Already at latest revision: $DEPLOY_REV"
-fi
+    # For both dev and prod, track deploy/main
+    DEPLOY_BRANCH="main"
+    git fetch deploy
+    CURRENT_REV=$(git rev-parse HEAD 2>/dev/null || echo "0000000000000000000000000000000000000000")
+    DEPLOY_REV=$(git rev-parse deploy/${DEPLOY_BRANCH} 2>/dev/null || echo "0000000000000000000000000000000000000000")
 
-# Install dependencies
+    if [ "$CURRENT_REV" != "$DEPLOY_REV" ]; then
+        git reset --hard "$DEPLOY_REV"
+        git clean -fd
+        log "Code updated: $DEPLOY_REV"
+    else
+        log "Already at latest revision: $DEPLOY_REV"
+    fi
+)
+
+# Install dependencies (outside subshell, in APP_DIR)
 log "Installing dependencies..."
+cd "$APP_DIR"
 pnpm install --frozen-lockfile
 log "Dependencies installed"
 
@@ -71,6 +75,7 @@ log "Prisma client generated"
 
 # Build
 log "Building..."
+cd "$APP_DIR"
 pnpm build
 log "Build complete"
 
