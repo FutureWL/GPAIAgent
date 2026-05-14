@@ -36,29 +36,26 @@ fi
 # Pull latest code (use fetch+reset instead of pull to handle bare repo as source)
 log "Pulling latest code..."
 
-# Change to app directory - use a subshell to avoid cwd issues
-(
-    cd "$APP_DIR" || { log "FATAL: cannot cd to $APP_DIR"; exit 1; }
-
-    # Ensure bare repo is configured as remote
-    if ! git remote | grep -q "^deploy$"; then
-        git remote add deploy "$REPO_DIR"
+# Run git operations in a new bash process to ensure clean environment
+bash -c "
+    set -e
+    cd '$APP_DIR'
+    pwd
+    if ! git remote | grep -q '^deploy\$'; then
+        git remote add deploy '$REPO_DIR'
     fi
-
-    # For both dev and prod, track deploy/main
-    DEPLOY_BRANCH="main"
+    DEPLOY_BRANCH=main
     git fetch deploy
-    CURRENT_REV=$(git rev-parse HEAD 2>/dev/null || echo "0000000000000000000000000000000000000000")
-    DEPLOY_REV=$(git rev-parse deploy/${DEPLOY_BRANCH} 2>/dev/null || echo "0000000000000000000000000000000000000000")
-
-    if [ "$CURRENT_REV" != "$DEPLOY_REV" ]; then
-        git reset --hard "$DEPLOY_REV"
+    CURRENT_REV=\$(git rev-parse HEAD 2>/dev/null || echo '0000000000000000000000000000000000000000')
+    DEPLOY_REV=\$(git rev-parse deploy/\${DEPLOY_BRANCH} 2>/dev/null || echo '0000000000000000000000000000000000000000')
+    if [ \"\$CURRENT_REV\" != \"\$DEPLOY_REV\" ]; then
+        git reset --hard \"\$DEPLOY_REV\"
         git clean -fd
-        log "Code updated: $DEPLOY_REV"
+        echo \"Code updated: \$DEPLOY_REV\"
     else
-        log "Already at latest revision: $DEPLOY_REV"
+        echo \"Already at latest revision: \$DEPLOY_REV\"
     fi
-)
+"
 
 # Install dependencies (outside subshell, in APP_DIR)
 log "Installing dependencies..."
