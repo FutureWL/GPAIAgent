@@ -5,11 +5,16 @@ import { PrismaService } from '../prisma/prisma.service';
 export class StrategiesService {
   constructor(private readonly prismaService: PrismaService) {}
 
-  async list(params?: { take?: number; skip?: number }) {
+  async list(params?: { take?: number; skip?: number; stockCode?: string; riskLevel?: string }) {
     const take = Math.min(Math.max(params?.take ?? 20, 1), 50);
     const skip = Math.max(params?.skip ?? 0, 0);
 
+    const where: Record<string, unknown> = {};
+    if (params?.stockCode) where.stockCode = params.stockCode;
+    if (params?.riskLevel) where.riskLevel = params.riskLevel;
+
     const items = await this.prismaService.strategy.findMany({
+      where,
       take,
       skip,
       orderBy: { createdAt: 'desc' },
@@ -18,15 +23,22 @@ export class StrategiesService {
         title: true,
         description: true,
         tags: true,
+        stockCode: true,
+        riskLevel: true,
         viewCount: true,
         createdAt: true,
         updatedAt: true,
         author: { select: { id: true, username: true, name: true, avatar: true } },
+        stock: { select: { code: true, name: true } },
         _count: { select: { likes: true } },
       },
     });
 
-    return items.map((s) => ({ ...s, likeCount: s._count.likes }));
+    return items.map((s) => ({
+      ...s,
+      likeCount: s._count.likes,
+      stock: s.stock ?? null,
+    }));
   }
 
   async getById(id: string, currentUserId?: string) {
@@ -38,10 +50,13 @@ export class StrategiesService {
         description: true,
         content: true,
         tags: true,
+        stockCode: true,
+        riskLevel: true,
         viewCount: true,
         createdAt: true,
         updatedAt: true,
         author: { select: { id: true, username: true, name: true, avatar: true } },
+        stock: { select: { code: true, name: true } },
         likes: currentUserId
           ? { where: { userId: currentUserId }, select: { id: true } }
           : false,
@@ -95,13 +110,23 @@ export class StrategiesService {
     return { liked: false, likeCount: count };
   }
 
-  async create(params: { title: string; description: string; content: string; tags: string[]; authorId: string }) {
+  async create(params: {
+    title: string;
+    description: string;
+    content: string;
+    tags: string[];
+    stockCode?: string;
+    riskLevel?: string;
+    authorId: string;
+  }) {
     const strategy = await this.prismaService.strategy.create({
       data: {
         title: params.title,
         description: params.description,
         content: params.content,
         tags: params.tags,
+        stockCode: params.stockCode,
+        riskLevel: params.riskLevel,
         authorId: params.authorId,
       },
       select: {
@@ -110,6 +135,8 @@ export class StrategiesService {
         description: true,
         content: true,
         tags: true,
+        stockCode: true,
+        riskLevel: true,
         viewCount: true,
         createdAt: true,
         updatedAt: true,
