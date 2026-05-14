@@ -20,7 +20,7 @@ log() {
 
 APP_DIR="/home/weilai/apps/gpaia-agent-${ENV}"
 REPO_DIR="/home/weilai/repos/gpaia-agent.git"
-ECOSYSTEM="$DEPLOY_DIR/pm2/ecosystem.${ENV}.config.js"
+ECOSYSTEM="/home/weilai/ecosystem.${ENV}.config.js"
 
 # CRITICAL: change to app directory FIRST, before anything else
 # This script may be called from bare repo directory via git hook
