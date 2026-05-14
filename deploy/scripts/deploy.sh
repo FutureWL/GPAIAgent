@@ -35,21 +35,19 @@ fi
 
 # Pull latest code (use fetch+reset instead of pull to handle bare repo as source)
 log "Pulling latest code..."
-cd "$APP_DIR"
+cd "$APP_DIR" || { log "FATAL: cannot cd to $APP_DIR"; exit 1; }
+
 # Ensure bare repo is configured as remote
 if ! git remote | grep -q "^deploy$"; then
     git remote add deploy "$REPO_DIR"
 fi
-# For dev environment, always track deploy/main (dev mirrors main)
-# For prod environment, track deploy/prod (or deploy/main if prod doesn't exist as separate branch)
-if [ "$ENV" = "dev" ]; then
-    DEPLOY_BRANCH="main"
-else
-    DEPLOY_BRANCH="main"
-fi
+
+# For both dev and prod, track deploy/main
+DEPLOY_BRANCH="main"
 git fetch deploy
 CURRENT_REV=$(git rev-parse HEAD 2>/dev/null || echo "0000000000000000000000000000000000000000")
 DEPLOY_REV=$(git rev-parse deploy/${DEPLOY_BRANCH} 2>/dev/null || echo "0000000000000000000000000000000000000000")
+
 if [ "$CURRENT_REV" != "$DEPLOY_REV" ]; then
     git reset --hard "$DEPLOY_REV"
     git clean -fd
@@ -70,7 +68,7 @@ pnpm prisma generate
 cd "$APP_DIR"
 log "Prisma client generated"
 
-# Build (both dev and prod need build for API at minimum)
+# Build
 log "Building..."
 pnpm build
 log "Build complete"
