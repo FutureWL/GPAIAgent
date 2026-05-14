@@ -150,7 +150,7 @@ export class StocksService {
 
     try {
       await this.prismaService.userStock.create({
-        data: { userId, stockCode },
+        data: { userId, stockId: stock!.id },
       });
     } catch {
       // 已存在，忽略
@@ -160,8 +160,10 @@ export class StocksService {
   }
 
   async removeUserStock(userId: string, stockCode: string) {
+    const stock = await this.prismaService.stock.findUnique({ where: { code: stockCode } });
+    if (!stock) return { success: true };
     await this.prismaService.userStock.deleteMany({
-      where: { userId, stockCode },
+      where: { userId, stockId: stock.id },
     });
     return { success: true };
   }

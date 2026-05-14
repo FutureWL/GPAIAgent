@@ -143,7 +143,7 @@ export class AiService {
     return null;
   }
 
-  private mockAnalysis(stockName: string, prompt: string): string {
+  private mockAnalysis(stockName: string, _prompt: string): string {
     const levels: RiskLevel[] = ['risk_high', 'profit_high', 'neutral', 'avoid'];
     const level = levels[Math.floor(Math.random() * levels.length)];
     const label = RISK_LABELS[level];

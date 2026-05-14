@@ -1,28 +1,21 @@
 import { Controller, Post, Get, Body, UseGuards, Request } from '@nestjs/common';
 import { AiService } from './ai.service';
-import { JwtAuthGuard } from '../auth/auth.guard';
+import { JwtCookieAuthGuard } from '../auth/auth.guard';
+import type { AuthedRequest } from '../auth/auth.guard';
 
 @Controller('ai')
 export class AiController {
   constructor(private readonly aiService: AiService) {}
 
   @Post('analyze')
-  @UseGuards(JwtAuthGuard)
-  analyze(
-    @Request() req: { user: { id: string } },
-    @Body() body: { stockCode: string; stockName: string; prompt: string },
-  ) {
-    return this.aiService.analyze(
-      req.user.id,
-      body.stockCode,
-      body.stockName,
-      body.prompt,
-    );
+  @UseGuards(JwtCookieAuthGuard)
+  analyze(@Request() req: AuthedRequest, @Body() body: { stockCode: string; stockName: string; prompt: string }) {
+    return this.aiService.analyze(req.user.sub, body.stockCode, body.stockName, body.prompt);
   }
 
   @Get('history')
-  @UseGuards(JwtAuthGuard)
-  getHistory(@Request() req: { user: { id: string } }) {
-    return this.aiService.getHistory(req.user.id);
+  @UseGuards(JwtCookieAuthGuard)
+  getHistory(@Request() req: AuthedRequest) {
+    return this.aiService.getHistory(req.user.sub);
   }
 }
