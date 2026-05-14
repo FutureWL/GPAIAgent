@@ -10,6 +10,7 @@ type StrategyListItem = {
   description: string;
   tags: string[];
   viewCount: number;
+  likeCount: number;
   createdAt: string;
   author: { id: string; username: string; name: string | null; avatar: string | null };
 };
@@ -45,9 +46,14 @@ export default function StrategiesPage() {
       <div className="max-w-3xl mx-auto">
         <div className="flex items-center justify-between gap-4">
           <h1 className="text-3xl font-semibold">策略广场</h1>
-          <Link href="/strategies/new" className="rounded-md bg-white text-slate-900 px-4 py-2 font-medium">
-            发布策略
-          </Link>
+          <div className="flex gap-3">
+            <Link href="/login" className="rounded-md border border-slate-500 text-slate-300 px-4 py-2 font-medium">
+              登录
+            </Link>
+            <Link href="/register" className="rounded-md bg-white text-slate-900 px-4 py-2 font-medium">
+              注册
+            </Link>
+          </div>
         </div>
 
         {loading ? <div className="mt-6 text-slate-400">加载中...</div> : null}
@@ -74,7 +80,7 @@ export default function StrategiesPage() {
                 ))}
               </div>
               <div className="mt-4 text-sm text-slate-400">
-                作者：{item.author.name ?? item.author.username} · 浏览 {item.viewCount}
+                作者：{item.author.name ?? item.author.username} · 浏览 {item.viewCount} · 点赞 {item.likeCount}
               </div>
             </Link>
           ))}

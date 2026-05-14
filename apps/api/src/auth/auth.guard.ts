@@ -27,3 +27,26 @@ export class JwtCookieAuthGuard implements CanActivate {
     }
   }
 }
+
+@Injectable()
+export class OptionalJwtCookieAuthGuard implements CanActivate {
+  constructor(private readonly jwtService: JwtService) {}
+
+  async canActivate(context: ExecutionContext): Promise<boolean> {
+    const req = context.switchToHttp().getRequest<Request>();
+    const token = req.cookies?.[ACCESS_TOKEN_COOKIE];
+
+    if (!token) {
+      return true;
+    }
+
+    try {
+      const payload = await this.jwtService.verifyAsync<JwtPayload>(token);
+      (req as AuthedRequest).user = payload;
+    } catch {
+      // invalid token — treat as unauthenticated, continue
+    }
+
+    return true;
+  }
+}

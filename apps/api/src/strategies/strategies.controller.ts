@@ -1,5 +1,5 @@
-import { Body, Controller, Get, Param, Post, Query, Req, UseGuards } from '@nestjs/common';
-import { JwtCookieAuthGuard, AuthedRequest } from '../auth/auth.guard';
+import { Body, Controller, Delete, Get, Param, Post, Query, Req, UnauthorizedException, UseGuards } from '@nestjs/common';
+import { JwtCookieAuthGuard, OptionalJwtCookieAuthGuard, AuthedRequest } from '../auth/auth.guard';
 import { CreateStrategyDto } from './dto/create-strategy.dto';
 import { StrategiesService } from './strategies.service';
 
@@ -15,9 +15,30 @@ export class StrategiesController {
     });
   }
 
+  @UseGuards(OptionalJwtCookieAuthGuard)
   @Get(':id')
-  async get(@Param('id') id: string) {
-    return this.strategiesService.getById(id);
+  async get(@Param('id') id: string, @Req() req: AuthedRequest) {
+    return this.strategiesService.getById(id, req.user?.sub);
+  }
+
+  @UseGuards(OptionalJwtCookieAuthGuard)
+  @Post(':id/like')
+  async like(@Param('id') id: string, @Req() req: AuthedRequest) {
+    if (!req.user) {
+      throw new UnauthorizedException('Please log in first');
+    }
+    return this.strategiesService.like(id, req.user.sub);
+  }
+
+  @UseGuards(JwtCookieAuthGuard)
+  @Delete(':id/like')
+  async unlike(@Param('id') id: string, @Req() req: AuthedRequest) {
+    return this.strategiesService.unlike(id, req.user.sub);
+  }
+
+  @Post(':id/view')
+  async view(@Param('id') id: string) {
+    return this.strategiesService.incrementViewCount(id);
   }
 
   @UseGuards(JwtCookieAuthGuard)

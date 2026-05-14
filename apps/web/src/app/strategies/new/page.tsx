@@ -17,17 +17,20 @@ export default function NewStrategyPage() {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    apiFetch('/auth/me')
-      .then(() => {})
-      .catch(() => {
-        router.replace('/login');
-      });
-  }, [router]);
+    // Let guests view the page; redirect to login only when they try to submit
+  }, []);
 
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
     setError(null);
     setLoading(true);
+
+    // Check auth before submitting
+    const me = await apiFetch<{ id: string }>('/auth/me').catch(() => null);
+    if (!me) {
+      router.replace('/login');
+      return;
+    }
 
     const tags = tagsText
       .split(',')

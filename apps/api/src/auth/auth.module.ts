@@ -2,7 +2,7 @@ import { Module } from '@nestjs/common';
 import { JwtModule } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
 import { AuthController } from './auth.controller';
-import { JwtCookieAuthGuard } from './auth.guard';
+import { JwtCookieAuthGuard, OptionalJwtCookieAuthGuard } from './auth.guard';
 import { AuthService } from './auth.service';
 import { PrismaModule } from '../prisma/prisma.module';
 
@@ -17,7 +17,7 @@ import { PrismaModule } from '../prisma/prisma.module';
     }),
   ],
   controllers: [AuthController],
-  providers: [AuthService, JwtCookieAuthGuard],
-  exports: [JwtModule, JwtCookieAuthGuard],
+  providers: [AuthService, JwtCookieAuthGuard, OptionalJwtCookieAuthGuard],
+  exports: [JwtModule, JwtCookieAuthGuard, OptionalJwtCookieAuthGuard],
 })
 export class AuthModule {}
