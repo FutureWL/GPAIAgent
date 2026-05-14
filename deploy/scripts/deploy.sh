@@ -25,6 +25,9 @@ ECOSYSTEM="$DEPLOY_DIR/pm2/ecosystem.${ENV}.config.js"
 # CRITICAL: change to app directory FIRST, before anything else
 # This script may be called from bare repo directory via git hook
 cd "$APP_DIR"
+# Also explicitly set git env vars to avoid residual state from hook's bare repo context
+export GIT_DIR="$APP_DIR/.git"
+export GIT_WORK_TREE="$APP_DIR"
 
 log "=========================================="
 log "Starting ${ENV} deployment"
