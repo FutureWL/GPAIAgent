@@ -24,6 +24,7 @@ ECOSYSTEM="$DEPLOY_DIR/pm2/ecosystem.${ENV}.config.js"
 
 log "=========================================="
 log "Starting ${ENV} deployment"
+log "CWD: $(pwd) | USER: $(whoami) | SHELL: $SHELL"
 log "=========================================="
 
 # Create app directory if it doesn't exist
