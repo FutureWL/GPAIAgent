@@ -1,0 +1,41 @@
+# dependencies
+node_modules
+.pnpm-store
+
+# build output
+dist
+.next
+out
+
+# environment
+.env
+.env.local
+.env.*.local
+
+# IDE
+.idea
+.vscode
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# logs
+*.log
+npm-debug.log*
+pnpm-debug.log*
+
+# testing
+coverage
+
+# prisma
+*.db
+*.db-journal
+
+# misc
+*.tsbuildinfo
+
+# local assistant settings
+.claude/settings.local.json

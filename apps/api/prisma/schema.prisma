@@ -1,0 +1,84 @@
+// This is your Prisma schema file,
+// learn more about it in our docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id           String  @id @default(cuid())
+  username     String  @unique
+  passwordHash String
+  email        String? @unique
+  name         String?
+  avatar    String?
+  bio       String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  strategies Strategy[]
+  comments   Comment[]
+  likes      Like[]
+}
+
+model Strategy {
+  id          String   @id @default(cuid())
+  title       String
+  description String
+  content     String   // 策略详细内容（支持 Markdown）
+  tags        String[] // 标签，如 ["短线", "技术面", "追涨"]
+  viewCount   Int      @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  authorId String
+  author   User   @relation(fields: [authorId], references: [id])
+
+  comments Comment[]
+  likes    Like[]
+
+  backtests Backtest[]
+}
+
+model Backtest {
+  id        String   @id @default(cuid())
+  name      String   // 回测名称，如 "2024年1月-6月"
+  params    Json     // 回测参数（买入条件、卖出条件、时间等）
+  result    Json     // 回测结果（收益、夏普比率、最大回撤等）
+  summary   String?  // 简要总结
+  createdAt DateTime @default(now())
+
+  strategyId String
+  strategy   Strategy @relation(fields: [strategyId], references: [id], onDelete: Cascade)
+}
+
+model Comment {
+  id        String   @id @default(cuid())
+  content   String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  authorId  String
+  author    User    @relation(fields: [authorId], references: [id])
+
+  strategyId String
+  strategy   Strategy @relation(fields: [strategyId], references: [id], onDelete: Cascade)
+}
+
+model Like {
+  id        String   @id @default(cuid())
+  createdAt DateTime @default(now())
+
+  userId    String
+  user      User    @relation(fields: [userId], references: [id])
+
+  strategyId String
+  strategy   Strategy @relation(fields: [strategyId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, strategyId]) // 每人只能点赞一次
+}
