@@ -257,6 +257,28 @@ export class StocksService {
     return { success: true };
   }
 
+  // 获取股票日线历史数据（从本地数据库）
+  async getStockDaily(stockCode: string, days = 250) {
+    const stock = await this.prismaService.stock.findUnique({ where: { code: stockCode } });
+    if (!stock) throw new NotFoundException('股票不存在');
+
+    const records = await this.prismaService.stockDaily.findMany({
+      where: { stockId: stock.id },
+      orderBy: { date: 'desc' },
+      take: days,
+    });
+
+    // 返回格式: [日期, 开, 收, 高, 低, 成交量]（倒序转正序）
+    return records.reverse().map((r) => ({
+      date: r.date.toISOString().slice(0, 10),
+      open: r.open,
+      close: r.close,
+      high: r.high,
+      low: r.low,
+      volume: r.volume,
+    }));
+  }
+
   // 批量获取实时行情（用于 Header 滚动条、首页行情卡片、自选股列表）
   async getBatchQuotes(codes: string[]): Promise<RealTimeQuote[]> {
     if (!codes.length) return [];

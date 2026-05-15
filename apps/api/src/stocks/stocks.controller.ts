@@ -32,6 +32,12 @@ export class StocksController {
   getStrategies(@Param('code') code: string) {
     return this.stocksService.getStrategies(code);
   }
+
+  /** 日线历史数据（从本地数据库） */
+  @Get(':code/daily')
+  getDaily(@Param('code') code: string, @Query('days') days?: string) {
+    return this.stocksService.getStockDaily(code, days ? parseInt(days) : 250);
+  }
 }
 
 @Controller('stocks/user')
