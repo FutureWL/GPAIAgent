@@ -1,5 +1,6 @@
 import Sidebar from './sidebar';
 import Header from './header';
+import StockTicker from '@/components/stocks/stock-ticker';
 
 interface User {
   id: string;
@@ -27,6 +28,7 @@ export default function AppShell({ children, me, locale = 'zh' }: AppShellProps)
     <div className="flex h-screen bg-background">
       <Sidebar locale={locale as 'zh' | 'en'} me={me} />
       <div className="flex-1 flex flex-col min-w-0">
+        <StockTicker />
         <Header locale={locale as 'zh' | 'en'} me={me} />
         <main className="flex-1 overflow-y-auto p-6">
           {children}
