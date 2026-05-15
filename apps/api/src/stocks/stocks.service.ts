@@ -92,11 +92,12 @@ export class StocksService {
     });
   }
 
-  // 搜索股票（模糊匹配代码或名称）
+  // 搜索股票（模糊匹配代码或名称），返回实时行情
   async search(query: string) {
     const q = query.trim();
     if (!q) return [];
 
+    // 优先从数据库找
     const dbStocks = await this.prismaService.stock.findMany({
       where: {
         OR: [
@@ -107,24 +108,37 @@ export class StocksService {
       take: 20,
     });
 
-    // 如果数据库没有足够的股票，补充 mock 数据
-    const mockMatches = MOCK_STOCKS.filter(
-      (s) =>
-        s.code.includes(q.toUpperCase()) ||
-        s.name.includes(q) ||
-        q.length < 3,
-    );
+    const candidates = new Map<string, { code: string; name: string; market: string; type: string }>();
+    for (const s of dbStocks) candidates.set(s.code, s);
 
-    const merged = [...dbStocks];
-    for (const mock of mockMatches) {
-      if (!merged.find((s) => s.code === mock.code)) {
-        await this.ensureStock(mock.code, mock.name, mock.market, mock.type);
-        merged.push({ id: mock.code, code: mock.code, name: mock.name, market: mock.market, type: mock.type, createdAt: new Date() });
+    // 数据库不够时补充 mock
+    if (candidates.size < 20) {
+      for (const mock of MOCK_STOCKS) {
+        if (candidates.size >= 20) break;
+        if (mock.code.includes(q.toUpperCase()) || mock.name.includes(q) || q.length < 3) {
+          candidates.set(mock.code, mock);
+        }
       }
-      if (merged.length >= 20) break;
     }
 
-    return merged.slice(0, 20);
+    if (candidates.size === 0) return [];
+
+    // 批量获取实时行情
+    const codes = [...candidates.keys()];
+    const quotes = await this.getBatchQuotes(codes);
+    const quoteMap = new Map(quotes.map((qt) => [qt.code.replace(/^(sh|sz)/, ''), qt]));
+
+    return [...candidates.values()].map((s) => {
+      const qt = quoteMap.get(s.code);
+      return {
+        code: s.code,
+        name: qt?.name || s.name,
+        price: qt?.price ?? 0,
+        change: qt?.change ?? 0,
+        changePercent: qt?.changePercent ?? 0,
+        volume: qt?.volume ?? 0,
+      };
+    });
   }
 
   // 获取单只股票详情
@@ -182,39 +196,56 @@ export class StocksService {
       orderBy: { addedAt: 'desc' },
     });
 
-    return userStocks.map((us) => ({
-      addedAt: us.addedAt,
-      stock: {
-        ...us.stock,
-        price: this.mockPrice(us.stock.code),
-        change: this.mockChange(),
-        changePercent: this.mockChangePercent(),
-        volume: this.mockVolume(),
-      },
-    }));
+    if (userStocks.length === 0) return [];
+
+    // 批量获取实时行情
+    const codes = userStocks.map((us) => us.stock.code);
+    const quotes = await this.getBatchQuotes(codes);
+    const quoteMap = new Map(quotes.map((q) => [q.code.replace(/^(sh|sz)/, ''), q]));
+
+    return userStocks.map((us) => {
+      const qt = quoteMap.get(us.stock.code) ?? this.mockQuote(us.stock.code);
+      return {
+        addedAt: us.addedAt,
+        stock: {
+          code: us.stock.code,
+          name: qt.name || us.stock.name,
+          price: qt.price,
+          change: qt.change,
+          changePercent: qt.changePercent,
+          volume: qt.volume,
+        },
+      };
+    });
   }
 
   async addUserStock(userId: string, stockCode: string) {
-    const stock = await this.prismaService.stock.findUnique({ where: { code: stockCode } });
+    const cleanCode = stockCode.replace(/^(sh|sz)/, '');
+
+    // 1. 检查数据库
+    let stock = await this.prismaService.stock.findUnique({ where: { code: cleanCode } });
+
+    // 2. 不存在则从腾讯接口补全信息并创建
     if (!stock) {
-      // 尝试从 mock 中找
-      const mock = MOCK_STOCKS.find((s) => s.code === stockCode);
-      if (mock) {
-        await this.ensureStock(mock.code, mock.name, mock.market, mock.type);
+      const qt = await this.fetchRealTimeQuote(cleanCode);
+      if (!qt) {
+        // 尝试用 MOCK 中找
+        const mock = MOCK_STOCKS.find((s) => s.code === cleanCode);
+        if (!mock) throw new NotFoundException('股票不存在');
+        stock = await this.ensureStock(mock.code, mock.name, mock.market, mock.type);
       } else {
-        throw new NotFoundException('股票不存在');
+        stock = await this.ensureStock(cleanCode, qt.name, qt.market, 'stock');
       }
     }
 
+    // 3. 关联用户自选
     try {
       await this.prismaService.userStock.create({
-        data: { userId, stockId: stock!.id },
+        data: { userId, stockId: stock.id },
       });
-    } catch {
-      // 已存在，忽略
-    }
+    } catch { /* 已存在，忽略 */ }
 
-    return { success: true };
+    return { success: true, stockCode: cleanCode };
   }
 
   async removeUserStock(userId: string, stockCode: string) {
@@ -226,43 +257,76 @@ export class StocksService {
     return { success: true };
   }
 
-  // 批量获取实时行情（用于 Header 滚动条、首页行情卡片）
+  // 批量获取实时行情（用于 Header 滚动条、首页行情卡片、自选股列表）
   async getBatchQuotes(codes: string[]): Promise<RealTimeQuote[]> {
     if (!codes.length) return [];
 
-    // 东方财富批量行情API (免费，无需key)
-    const secids = codes.map((c) => {
+    // 腾讯批量行情API (免费，无需key)
+    const qtCodes = codes.map((c) => {
       const pure = c.replace(/^(sh|sz)/, '');
-      return pure.startsWith('6') ? `1.${pure}` : `0.${pure}`;
-    }).join(',');
-
-    const url = `https://push2.eastmoney.com/api/qt/ulist.np/get?secids=${secids}&fields=f12,f14,f2,f3,f4,f5,f15,f16,f17,f18`;
+      return pure.startsWith('6') || pure.startsWith('5') ? `sh${pure}` : `sz${pure}`;
+    });
+    const url = `https://qt.gtimg.cn/q=${qtCodes.join(',')}`;
 
     try {
       const resp = await fetch(url, {
-        headers: { 'User-Agent': 'Mozilla/5.0' },
-        signal: AbortSignal.timeout(5000),
+        headers: { Referer: 'https://finance.qq.com', 'User-Agent': 'Mozilla/5.0' },
+        signal: AbortSignal.timeout(10000),
       });
       if (!resp.ok) return codes.map((c) => this.mockQuote(c));
 
-      const json = await resp.json() as { data: any };
-      const list: any[] = json.data?.diff ?? [];
-      return list.map((d: any) => ({
-        code: d.f12,
-        name: d.f14,
-        price: d.f2 / 100,
-        change: d.f4 / 100,
-        changePercent: d.f3 / 100,
-        volume: d.f5,
-        amount: d.f6 / 100,
-        high: d.f15 / 100,
-        low: d.f16 / 100,
-        open: d.f17 / 100,
-        preClose: d.f18 / 100,
-        market: d.f12?.startsWith('6') ? 'sh' : 'sz',
-      }));
+      const text = await resp.text();
+      const lines = text.trim().split('\n');
+
+      const results: RealTimeQuote[] = [];
+      for (const line of lines) {
+        if (!line.trim()) continue;
+        // 格式: v_sh600519="1~名称~代码~现价~昨收~今开~..."
+        const eqIdx = line.indexOf('=');
+        if (eqIdx < 0) continue;
+        const dataStr = line.substring(eqIdx + 2); // 去掉 " 和 =
+        const parts = dataStr.split('~');
+        if (parts.length < 35) continue;
+
+        const rawCode = parts[2];
+        const price = parseFloat(parts[3]) || 0;
+        const preClose = parseFloat(parts[4]) || 0;
+        const open = parseFloat(parts[5]) || 0;
+        const volume = parseInt(parts[6]) || 0; // 手
+        const amount = parseFloat(parts[36]) || 0;
+        const change = parseFloat(parts[31]) || 0;
+        const changePercent = parseFloat(parts[32]) || 0;
+        const high = parseFloat(parts[34]) || 0;
+        const low = parseFloat(parts[35]) || 0;
+        // 名称 parts[1] 是 GBK 会乱码，用 rawCode 判断市场
+        const market = rawCode.startsWith('6') || rawCode.startsWith('5') ? 'sh' : 'sz';
+
+        results.push({
+          code: rawCode,
+          name: parts[1], // 可能乱码，但不影响
+          price,
+          change,
+          changePercent,
+          volume,
+          amount,
+          high,
+          low,
+          open,
+          preClose,
+          market,
+        });
+      }
+
+      // 补全未返回的股票
+      const found = new Set(results.map((r) => r.code));
+      for (const c of codes) {
+        const pure = c.replace(/^(sh|sz)/, '');
+        if (!found.has(pure)) results.push(this.mockQuote(pure));
+      }
+
+      return results;
     } catch {
-      return codes.map((c) => this.mockQuote(c));
+      return codes.map((c) => this.mockQuote(c.replace(/^(sh|sz)/, '')));
     }
   }
 

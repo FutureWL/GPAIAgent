@@ -34,7 +34,7 @@ export class StocksController {
   }
 }
 
-@Controller('user/stocks')
+@Controller('stocks/user')
 @UseGuards(JwtCookieAuthGuard)
 export class UserStocksController {
   constructor(private readonly stocksService: StocksService) {}

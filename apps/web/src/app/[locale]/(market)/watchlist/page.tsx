@@ -29,7 +29,7 @@ export default function WatchlistPage() {
 
   function loadWatchlist() {
     setLoading(true);
-    apiFetch<WatchlistItem[]>('/stocks/user/list')
+    apiFetch<WatchlistItem[]>('/stocks/user')
       .then(setWatchlist)
       .catch(() => setWatchlist([]))
       .finally(() => setLoading(false));
@@ -52,7 +52,7 @@ export default function WatchlistPage() {
     setAdding(code);
     setError(null);
     try {
-      await apiFetch('/stocks/user/add', {
+      await apiFetch('/stocks/user', {
         method: 'POST',
         body: JSON.stringify({ stockCode: code }),
       });
@@ -68,10 +68,7 @@ export default function WatchlistPage() {
 
   async function removeStock(code: string) {
     try {
-      await apiFetch('/stocks/user/remove', {
-        method: 'POST',
-        body: JSON.stringify({ stockCode: code }),
-      });
+      await apiFetch(`/stocks/user/${code}`, { method: 'DELETE' });
       loadWatchlist();
     } catch {
       // ignore

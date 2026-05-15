@@ -12,8 +12,8 @@ export enum MembershipTypeDto {
 
 export class ActivateMembershipDto {
   @IsEnum(MembershipLevelDto)
-  level: MembershipLevelDto;
+  level!: MembershipLevelDto;
 
   @IsEnum(MembershipTypeDto)
-  type: MembershipTypeDto;
+  type!: MembershipTypeDto;
 }

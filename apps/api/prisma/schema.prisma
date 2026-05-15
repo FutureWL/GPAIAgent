@@ -39,6 +39,7 @@ model Stock {
   createdAt DateTime @default(now())
 
   userStocks UserStock[]
+  dailyData  StockDaily[]
   strategies Strategy[]
   aiGenerations AIGeneration[]
 }
@@ -53,6 +54,24 @@ model UserStock {
   stock     Stock    @relation(fields: [stockId], references: [id], onDelete: Cascade)
 
   @@unique([userId, stockId])
+}
+
+model StockDaily {
+  id        String   @id @default(cuid())
+  stockId   String
+  date      DateTime @db.Date  // 交易日期
+  open      Float             // 开盘价（前复权）
+  close     Float             // 收盘价（前复权）
+  high      Float             // 最高价
+  low       Float             // 最低价
+  volume    Float             // 成交量（手）
+  amount    Float             // 成交额（元）
+  createdAt DateTime @default(now())
+
+  stock     Stock    @relation(fields: [stockId], references: [id], onDelete: Cascade)
+
+  @@unique([stockId, date])
+  @@index([date])
 }
 
 enum MembershipLevel {

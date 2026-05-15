@@ -4,15 +4,15 @@ export class AnalyzeDto {
   @IsString()
   @IsNotEmpty()
   @MaxLength(20)
-  stockCode: string;
+  stockCode!: string;
 
   @IsString()
   @IsNotEmpty()
   @MaxLength(100)
-  stockName: string;
+  stockName!: string;
 
   @IsString()
   @IsNotEmpty()
   @MaxLength(2000)
-  prompt: string;
+  prompt!: string;
 }

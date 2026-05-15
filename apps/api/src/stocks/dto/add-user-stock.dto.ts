@@ -4,5 +4,5 @@ export class AddUserStockDto {
   @IsString()
   @IsNotEmpty()
   @MaxLength(20)
-  stockCode: string;
+  stockCode!: string;
 }
