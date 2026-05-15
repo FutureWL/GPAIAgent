@@ -1,0 +1,46 @@
+#!/bin/bash
+
+# GPAIAgent Deployment Hook
+# - Push without tag  → update DEV environment only
+# - Push with tag     → update BOTH DEV and PROD environments
+
+# Disable exit-on-error since some git operations may produce non-zero exit
+# codes that are not critical (e.g. "not a git repo" during push processing)
+set +e
+
+DEPLOY_DIR="/home/weilai/CodeProjects/GPAIAgent/deploy"
+LOG_FILE="/home/weilai/logs/deploy-hook.log"
+
+# Ensure log directory exists
+mkdir -p /home/weilai/logs
+
+log() {
+    echo "[$(date '+%Y-%m-%d %H:%M:%S')] $1" | tee -a "$LOG_FILE"
+}
+
+cd /home/weilai/repos/gpaia-agent.git
+
+while read oldrev newrev refname; do
+    branch=$(echo "$refname" | sed 's|refs/heads/||')
+    is_tag=$(echo "$refname" | grep -q "refs/tags/" && echo "yes" || echo "no")
+
+    log "=========================================="
+    log "Push detected:"
+    log "  Branch/Tag: $branch"
+    log "  Old rev:    $oldrev"
+    log "  New rev:    $newrev"
+    log "  Is tag:     $is_tag"
+    log "=========================================="
+
+    if [ "$is_tag" = "yes" ]; then
+        # Tag push → deploy to PROD only (dev stays untouched)
+        log "TAG PUSH detected → Deploying to PROD only"
+        bash "$DEPLOY_DIR/scripts/deploy.sh" prod
+        log "TAG PUSH → PROD deployment complete"
+    else
+        # Branch push → deploy to DEV only
+        log "BRANCH PUSH detected → Deploying to DEV only"
+        bash "$DEPLOY_DIR/scripts/deploy.sh" dev
+        log "BRANCH PUSH → DEV deployment complete"
+    fi
+done
