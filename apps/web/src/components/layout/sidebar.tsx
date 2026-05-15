@@ -89,35 +89,22 @@ export default function Sidebar({ locale, username }: SidebarProps) {
         })}
       </nav>
 
-      {/* User */}
+      {/* User avatar at bottom — shows username when logged in */}
       <div className="p-3 border-t border-border">
-        {username ? (
-          <div className={cn('flex items-center gap-2', collapsed && 'justify-center')}>
-            <div className="w-8 h-8 rounded-full bg-primary/20 flex items-center justify-center text-primary text-sm font-medium flex-shrink-0">
-              {username[0].toUpperCase()}
-            </div>
-            {!collapsed && (
-              <div className="min-w-0">
-                <div className="text-sm font-medium truncate">{username}</div>
+        <div className={cn('flex items-center gap-2', collapsed && 'justify-center')}>
+          {username ? (
+            <>
+              <div className="w-8 h-8 rounded-full bg-primary/20 flex items-center justify-center text-primary text-sm font-medium flex-shrink-0">
+                {username[0].toUpperCase()}
               </div>
-            )}
-          </div>
-        ) : (
-          <div className={cn('flex gap-2', collapsed && 'flex-col items-center')}>
-            <Link href="/login" className={cn('flex-1', collapsed ? '' : '')}>
-              <Button size={collapsed ? 'icon' : 'sm'} className="w-full">
-                {locale === 'zh' ? '登录' : 'Login'}
-              </Button>
-            </Link>
-            {!collapsed && (
-              <Link href="/register">
-                <Button size="sm" variant="outline" className="w-full">
-                  {locale === 'zh' ? '注册' : 'Register'}
-                </Button>
-              </Link>
-            )}
-          </div>
-        )}
+              {!collapsed && (
+                <div className="min-w-0">
+                  <div className="text-sm font-medium truncate">{username}</div>
+                </div>
+              )}
+            </>
+          ) : null}
+        </div>
       </div>
     </aside>
   );

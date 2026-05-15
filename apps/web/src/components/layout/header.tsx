@@ -1,21 +1,56 @@
 'use client';
 
 import Link from 'next/link';
-import { usePathname } from 'next/navigation';
-import { Globe, Activity } from 'lucide-react';
+import { usePathname, useRouter } from 'next/navigation';
+import { Globe, LayoutDashboard } from 'lucide-react';
+import { UserOutlined, LogoutOutlined, DashboardOutlined } from '@ant-design/icons';
 import { Button } from '@/components/ui/button';
+import { Avatar, Dropdown } from 'antd';
+import type { MenuProps } from 'antd';
 
 interface HeaderProps {
   locale: 'zh' | 'en';
+  username?: string;
 }
 
-export default function Header({ locale }: HeaderProps) {
+export default function Header({ locale, username }: HeaderProps) {
   const pathname = usePathname();
+  const router = useRouter();
 
   const switchLocale = (newLocale: string) => {
     const newPath = pathname.replace(/^\/(zh|en)/, `/${newLocale}`);
     window.location.href = newPath;
   };
+
+  const handleLogout = () => {
+    document.cookie = 'gpai_access_token=; Max-Age=0; path=/';
+    router.push(`/${locale}/login`);
+    router.refresh();
+  };
+
+  const userMenuItems: MenuProps['items'] = [
+    {
+      key: 'username',
+      label: (
+        <div className="text-sm font-medium py-1">
+          {username}
+        </div>
+      ),
+      disabled: true,
+    },
+    { type: 'divider' },
+    {
+      key: 'admin',
+      icon: <DashboardOutlined />,
+      label: <Link href={`/${locale}/admin`}>管理后台</Link>,
+    },
+    {
+      key: 'logout',
+      icon: <LogoutOutlined />,
+      label: '退出登录',
+      onClick: handleLogout,
+    },
+  ];
 
   return (
     <header className="h-14 flex items-center justify-between px-6 border-b bg-card flex-shrink-0">
@@ -55,6 +90,16 @@ export default function Header({ locale }: HeaderProps) {
             EN
           </Button>
         </div>
+
+        {/* User dropdown — only shown when logged in */}
+        {username && (
+          <Dropdown menu={{ items: userMenuItems }} placement="bottomRight">
+            <Avatar
+              icon={<UserOutlined />}
+              className="cursor-pointer bg-primary/20 text-primary"
+            />
+          </Dropdown>
+        )}
       </div>
     </header>
   );

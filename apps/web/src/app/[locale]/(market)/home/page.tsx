@@ -1,6 +1,5 @@
 import { cookies } from 'next/headers';
 import { redirect } from 'next/navigation';
-import AppShell from '@/components/AppShell';
 import HomeContent from './HomeContent';
 
 async function getMe() {
@@ -28,9 +27,5 @@ export default async function HomePage({ params }: { params: Promise<{ locale: s
     redirect(`/${locale}/login`);
   }
 
-  return (
-    <AppShell username={me.username}>
-      <HomeContent username={me.username} />
-    </AppShell>
-  );
+  return <HomeContent username={me.username} />;
 }

@@ -1,5 +1,6 @@
 'use client';
 
+import 'antd/dist/reset.css';
 import React from 'react';
 import { Layout, Menu, Avatar, Dropdown, theme } from 'antd';
 import {
