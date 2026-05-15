@@ -254,6 +254,7 @@ export class StocksService {
         change: d.f4 / 100,
         changePercent: d.f3 / 100,
         volume: d.f5,
+        amount: d.f6 / 100,
         high: d.f15 / 100,
         low: d.f16 / 100,
         open: d.f17 / 100,

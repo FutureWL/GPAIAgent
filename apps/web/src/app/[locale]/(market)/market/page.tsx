@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState, useCallback } from 'react';
-import { apiFetch } from '@/lib/api';
+import { useRouter, usePathname } from 'next/navigation';
 
 type StockItem = {
   code: string;
@@ -23,6 +23,9 @@ type EastMoneyStock = {
 };
 
 export default function MarketPage() {
+  const router = useRouter();
+  const pathname = usePathname();
+  const locale = pathname.split('/')[1] || 'zh';
   const [allStocks, setAllStocks] = useState<StockItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
@@ -143,7 +146,11 @@ export default function MarketPage() {
                 {displayedStocks.map((s) => {
                   const up = s.change >= 0;
                   return (
-                    <tr key={s.code} className="border-b border-slate-800 hover:bg-slate-700/30">
+                    <tr
+                      key={s.code}
+                      className="border-b border-slate-800 hover:bg-slate-700/30 cursor-pointer"
+                      onClick={() => router.push(`/${locale}/stock/${s.code}`)}
+                    >
                       <td className="px-4 py-2.5 text-slate-400">{s.code}</td>
                       <td className="px-4 py-2.5 font-medium">{s.name}</td>
                       <td className="px-4 py-2.5 text-right">{s.price > 0 ? s.price.toFixed(2) : '-'}</td>
