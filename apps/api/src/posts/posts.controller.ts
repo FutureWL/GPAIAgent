@@ -1,94 +1,83 @@
 import {
   Controller,
   Get,
-  Post as HttpPost,
-  Delete,
-  Param,
+  Post,
   Body,
+  Param,
+  Delete,
   Query,
   UseGuards,
-  Request,
-  HttpCode,
-  HttpStatus,
+  Req,
 } from '@nestjs/common';
-import { JwtCookieAuthGuard } from '../auth/auth.guard';
-import type { AuthedRequest } from '../auth/auth.guard';
 import { PostsService } from './posts.service';
+import { JwtCookieAuthGuard } from '../auth/auth.guard';
+import { Request } from 'express';
 
 @Controller('posts')
 export class PostsController {
   constructor(private readonly postsService: PostsService) {}
 
   @Get()
-  findAll(@Query('page') page = 1, @Query('limit') limit = 20) {
-    return this.postsService.findAll(+page, +limit);
+  async findAll(
+    @Query('page') page = '1',
+    @Query('pageSize') pageSize = '10',
+  ) {
+    return this.postsService.findAll(+page, +pageSize);
   }
 
   @Get(':id')
-  findOne(@Param('id') id: string) {
+  async findOne(@Param('id') id: string) {
     return this.postsService.findOne(id);
   }
 
-  @HttpPost()
+  @Post()
   @UseGuards(JwtCookieAuthGuard)
-  create(@Request() req: AuthedRequest, @Body() body: { title: string; content: string; excerpt?: string; coverImage?: string; type?: string }) {
-    return this.postsService.create(req.user.sub, body);
+  async create(@Body() body: { title: string; content: string; excerpt?: string; coverImage?: string; type?: string }, @Req() req: Request) {
+    const userId = (req as any).user?.userId;
+    return this.postsService.create(body, userId);
   }
 
-  @HttpPost(':id/like')
+  @Post(':id/like')
   @UseGuards(JwtCookieAuthGuard)
-  @HttpCode(HttpStatus.OK)
-  toggleLike(@Request() req: AuthedRequest, @Param('id') id: string) {
-    return this.postsService.toggleLike(req.user.sub, id);
+  async like(@Param('id') id: string, @Req() req: Request) {
+    const userId = (req as any).user?.userId;
+    return this.postsService.toggleLike(id, userId);
   }
 
-  @HttpPost(':id/bookmark')
+  @Delete(':id/like')
   @UseGuards(JwtCookieAuthGuard)
-  @HttpCode(HttpStatus.OK)
-  toggleBookmark(@Request() req: AuthedRequest, @Param('id') id: string) {
-    return this.postsService.toggleBookmark(req.user.sub, id);
-  }
-
-  @HttpPost(':id/view')
-  @HttpCode(HttpStatus.OK)
-  incrementView(@Param('id') id: string) {
-    return this.postsService.incrementView(id);
+  async unlike(@Param('id') id: string, @Req() req: Request) {
+    const userId = (req as any).user?.userId;
+    return this.postsService.toggleLike(id, userId);
   }
 
   @Get(':id/comments')
-  getComments(@Param('id') id: string, @Query('page') page = 1) {
-    return this.postsService.getComments(id, +page);
+  async getComments(@Param('id') id: string) {
+    return this.postsService.getComments(id);
   }
 
-  @HttpPost(':id/comments')
+  @Post(':id/comments')
   @UseGuards(JwtCookieAuthGuard)
-  addComment(@Request() req: AuthedRequest, @Param('id') id: string, @Body() body: { content: string }) {
-    return this.postsService.addComment(req.user.sub, id, body.content);
+  async addComment(
+    @Param('id') id: string,
+    @Body() body: { content: string },
+    @Req() req: Request,
+  ) {
+    const userId = (req as any).user?.userId;
+    return this.postsService.addComment(id, body.content, userId);
   }
 
-  @Delete(':id/comments/:commentId')
+  @Post(':id/bookmark')
   @UseGuards(JwtCookieAuthGuard)
-  @HttpCode(HttpStatus.NO_CONTENT)
-  deleteComment(@Request() req: AuthedRequest, @Param('id') id: string, @Param('commentId') commentId: string) {
-    return this.postsService.deleteComment(req.user.sub, id, commentId);
+  async bookmark(@Param('id') id: string, @Req() req: Request) {
+    const userId = (req as any).user?.userId;
+    return this.postsService.toggleBookmark(id, userId);
   }
 
-  @Get('my/drafts')
+  @Delete(':id/bookmark')
   @UseGuards(JwtCookieAuthGuard)
-  getMyDrafts(@Request() req: AuthedRequest) {
-    return this.postsService.getMyDrafts(req.user.sub);
-  }
-
-  @Get('my/posts')
-  @UseGuards(JwtCookieAuthGuard)
-  getMyPosts(@Request() req: AuthedRequest) {
-    return this.postsService.getMyPosts(req.user.sub);
-  }
-
-  @Delete(':id')
-  @UseGuards(JwtCookieAuthGuard)
-  @HttpCode(HttpStatus.NO_CONTENT)
-  delete(@Request() req: AuthedRequest, @Param('id') id: string) {
-    return this.postsService.delete(req.user.sub, id);
+  async unbookmark(@Param('id') id: string, @Req() req: Request) {
+    const userId = (req as any).user?.userId;
+    return this.postsService.toggleBookmark(id, userId);
   }
 }

@@ -13,7 +13,7 @@ import { PrismaModule } from '../prisma/prisma.module';
     JwtModule.registerAsync({
       inject: [ConfigService],
       useFactory: (configService: ConfigService) => ({
-        secret: configService.get<string>('JWT_ACCESS_SECRET', 'dev-access-secret'),
+        secret: configService.get<string>('JWT_ACCESS_SECRET'),
       }),
     }),
   ],

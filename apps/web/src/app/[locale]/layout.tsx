@@ -1,6 +1,6 @@
 import { NextIntlClientProvider } from 'next-intl';
 import { getMessages, getLocale } from 'next-intl/server';
-import AppShell from '@/components/AppShell';
+import AppShell from '@/components/layout/appshell';
 
 async function getMe() {
   try {
@@ -31,10 +31,14 @@ export default async function LocaleLayout({
   const me = await getMe();
 
   return (
-    <NextIntlClientProvider messages={messages}>
-      <AppShell username={me?.username} locale={locale}>
-        {children}
-      </AppShell>
-    </NextIntlClientProvider>
+    <html lang={locale} suppressHydrationWarning>
+      <body>
+        <NextIntlClientProvider messages={messages}>
+          <AppShell username={me?.username} locale={locale}>
+            {children}
+          </AppShell>
+        </NextIntlClientProvider>
+      </body>
+    </html>
   );
 }

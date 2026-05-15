@@ -90,7 +90,8 @@ export class AuthService {
   }
 
   async refresh(refreshToken: string, res: Response): Promise<void> {
-    const refreshSecret = this.configService.get<string>('JWT_REFRESH_SECRET', 'dev-refresh-secret');
+    const refreshSecret = this.configService.get<string>('JWT_REFRESH_SECRET');
+    if (!refreshSecret) throw new Error('JWT_REFRESH_SECRET is not configured');
     let payload: JwtPayload;
     try {
       payload = await this.jwtService.verifyAsync<JwtPayload>(refreshToken, { secret: refreshSecret });
@@ -107,8 +108,10 @@ export class AuthService {
   }
 
   private async setAuthCookies(res: Response, user: { id: string; username: string }): Promise<void> {
-    const accessSecret = this.configService.get<string>('JWT_ACCESS_SECRET', 'dev-access-secret');
-    const refreshSecret = this.configService.get<string>('JWT_REFRESH_SECRET', 'dev-refresh-secret');
+    const accessSecret = this.configService.get<string>('JWT_ACCESS_SECRET');
+    if (!accessSecret) throw new Error('JWT_ACCESS_SECRET is not configured');
+    const refreshSecret = this.configService.get<string>('JWT_REFRESH_SECRET');
+    if (!refreshSecret) throw new Error('JWT_REFRESH_SECRET is not configured');
     const isProd = this.configService.get<string>('NODE_ENV') === 'production';
 
     const payload: JwtPayload = { sub: user.id, username: user.username };

@@ -88,12 +88,34 @@ export class AiService {
       // 从结果中提取风险标签
       riskLevel = this.extractRiskLevel(result);
     } catch (err) {
-      // MiniMax 不可用时，返回兜底分析（模拟）
+      // MiniMax 不可用时，返回兜底分析（模拟），明确标记
       result = this.mockAnalysis(stockName, prompt);
       riskLevel = this.extractRiskLevel(result);
+      const generation = await this.prismaService.aIGeneration.create({
+        data: {
+          userId,
+          stockCode,
+          stockName,
+          prompt,
+          result,
+          riskLevel,
+          model: 'MiniMax-Text-01 (mock)',
+        },
+      });
+
+      return {
+        id: generation.id,
+        stockCode,
+        stockName,
+        result,
+        riskLevel,
+        riskLabel: riskLevel ? RISK_LABELS[riskLevel] : null,
+        createdAt: generation.createdAt,
+        isMock: true,
+      };
     }
 
-    // 保存分析记录
+    // 正常路径...
     const generation = await this.prismaService.aIGeneration.create({
       data: {
         userId,
@@ -114,6 +136,7 @@ export class AiService {
       riskLevel,
       riskLabel: riskLevel ? RISK_LABELS[riskLevel] : null,
       createdAt: generation.createdAt,
+      isMock: false,
     };
   }
 

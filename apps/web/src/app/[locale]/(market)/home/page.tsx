@@ -20,11 +20,12 @@ async function getMe() {
   }
 }
 
-export default async function HomePage() {
+export default async function HomePage({ params }: { params: Promise<{ locale: string }> }) {
+  const { locale } = await params;
   const me = await getMe();
 
   if (!me) {
-    redirect('/login');
+    redirect(`/${locale}/login`);
   }
 
   return (

@@ -1,79 +1,116 @@
 'use client';
 
+import { useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { useState } from 'react';
-import { apiFetch } from '@/lib/api';
+import { Eye, EyeOff, TrendingUp } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 
 export default function RegisterPage() {
   const router = useRouter();
-  const [username, setUsername] = useState('');
-  const [password, setPassword] = useState('');
-  const [error, setError] = useState<string | null>(null);
+  const locale = 'zh';
+  const [form, setForm] = useState({ username: '', email: '', password: '' });
+  const [showPw, setShowPw] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
 
-  async function onSubmit(e: React.FormEvent) {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setError(null);
     setLoading(true);
+    setError('');
     try {
-      await apiFetch('/auth/register', {
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'}/auth/register`, {
         method: 'POST',
-        body: JSON.stringify({ username, password }),
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(form),
       });
-      router.replace('/');
-      router.refresh();
-    } catch (err) {
-      setError(err instanceof Error ? err.message : '注册失败');
+      const data = await res.json();
+      if (!res.ok) {
+        setError(data.message || (locale === 'zh' ? '注册失败' : 'Registration failed'));
+        return;
+      }
+      router.push(`/${locale}/login`);
+    } catch {
+      setError(locale === 'zh' ? '网络错误' : 'Network error');
     } finally {
       setLoading(false);
     }
-  }
+  };
 
   return (
-    <main className="min-h-screen bg-gradient-to-b from-slate-900 to-slate-800 text-white flex items-center justify-center p-6">
-      <div className="w-full max-w-sm rounded-xl bg-slate-900/40 border border-slate-700 p-6">
-        <h1 className="text-2xl font-semibold">注册</h1>
-
-        <form onSubmit={onSubmit} className="mt-6 space-y-4">
-          <label className="block">
-            <div className="text-sm text-slate-300">用户名</div>
-            <input
-              value={username}
-              onChange={(e) => setUsername(e.target.value)}
-              className="mt-1 w-full rounded-md bg-slate-950/50 border border-slate-700 px-3 py-2 outline-none focus:border-slate-500"
-              autoComplete="username"
-            />
-          </label>
-
-          <label className="block">
-            <div className="text-sm text-slate-300">密码（至少 6 位）</div>
-            <input
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              type="password"
-              className="mt-1 w-full rounded-md bg-slate-950/50 border border-slate-700 px-3 py-2 outline-none focus:border-slate-500"
-              autoComplete="new-password"
-            />
-          </label>
-
-          {error ? <div className="text-sm text-red-300">{error}</div> : null}
-
-          <button
-            disabled={loading}
-            className="w-full rounded-md bg-white text-slate-900 py-2 font-medium disabled:opacity-60"
-          >
-            {loading ? '注册中...' : '注册并登录'}
-          </button>
+    <div className="min-h-screen flex items-center justify-center bg-background p-4">
+      <Card className="w-full max-w-md">
+        <CardHeader className="space-y-1">
+          <div className="flex items-center gap-2 mb-2">
+            <TrendingUp className="w-6 h-6 text-primary" />
+            <CardTitle className="text-2xl">GPAIAgent</CardTitle>
+          </div>
+          <CardDescription>
+            {locale === 'zh' ? '创建新账户' : 'Create a new account'}
+          </CardDescription>
+        </CardHeader>
+        <form onSubmit={handleSubmit}>
+          <CardContent className="space-y-4">
+            {error && (
+              <div className="text-sm text-destructive bg-destructive/10 rounded-md px-3 py-2">
+                {error}
+              </div>
+            )}
+            <div className="space-y-2">
+              <label className="text-sm font-medium">用户名</label>
+              <Input
+                value={form.username}
+                onChange={(e) => setForm({ ...form, username: e.target.value })}
+                placeholder="输入用户名"
+                required
+              />
+            </div>
+            <div className="space-y-2">
+              <label className="text-sm font-medium">邮箱</label>
+              <Input
+                type="email"
+                value={form.email}
+                onChange={(e) => setForm({ ...form, email: e.target.value })}
+                placeholder="输入邮箱"
+                required
+              />
+            </div>
+            <div className="space-y-2">
+              <label className="text-sm font-medium">密码</label>
+              <div className="relative">
+                <Input
+                  type={showPw ? 'text' : 'password'}
+                  value={form.password}
+                  onChange={(e) => setForm({ ...form, password: e.target.value })}
+                  placeholder="设置密码"
+                  required
+                  className="pr-10"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPw(!showPw)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                >
+                  {showPw ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                </button>
+              </div>
+            </div>
+          </CardContent>
+          <CardFooter className="flex flex-col gap-3">
+            <Button type="submit" className="w-full" disabled={loading}>
+              {loading ? '注册中...' : '注册'}
+            </Button>
+            <p className="text-sm text-muted-foreground text-center">
+              已有账户？
+              <Link href="/login" className="text-primary hover:underline ml-1">
+                立即登录
+              </Link>
+            </p>
+          </CardFooter>
         </form>
-
-        <div className="mt-4 text-sm text-slate-300">
-          已经有账号？{' '}
-          <Link href="/login" className="text-white underline underline-offset-4">
-            去登录
-          </Link>
-        </div>
-      </div>
-    </main>
+      </Card>
+    </div>
   );
 }

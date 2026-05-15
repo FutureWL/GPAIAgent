@@ -1,6 +1,7 @@
 import { Controller, Get, Post, Delete, Param, Query, Body, UseGuards, Req } from '@nestjs/common';
 import { StocksService } from './stocks.service';
 import { JwtCookieAuthGuard, AuthedRequest } from '../auth/auth.guard';
+import { AddUserStockDto } from './dto/add-user-stock.dto';
 
 @Controller('stocks')
 export class StocksController {
@@ -33,8 +34,8 @@ export class UserStocksController {
   }
 
   @Post()
-  add(@Req() req: AuthedRequest, @Body() body: { stockCode: string }) {
-    return this.stocksService.addUserStock(req.user.sub, body.stockCode);
+  add(@Req() req: AuthedRequest, @Body() dto: AddUserStockDto) {
+    return this.stocksService.addUserStock(req.user.sub, dto.stockCode);
   }
 
   @Delete(':stockCode')
