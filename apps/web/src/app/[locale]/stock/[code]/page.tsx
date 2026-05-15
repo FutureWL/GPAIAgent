@@ -98,17 +98,27 @@ async function fetchMinuteData(code: string): Promise<MinutePoint[]> {
     if (!resp.ok) return [];
     const json = await resp.json();
     const raw = json?.data?.[qtCode]?.data?.data;
-    if (!Array.isArray(raw)) return [];
-    return raw.map((line: string) => {
+    if (!Array.isArray(raw) || raw.length === 0) return [];
+    // 腾讯分时数据：每行 = "时间 价格 累计成交量(手) 累计成交额(元)"
+    // 第2字段是累计量，需要差分得到每分钟增量
+    const points: MinutePoint[] = [];
+    let prevVolume = 0;
+    let prevAmount = 0;
+    for (const line of raw) {
       const parts = line.trim().split(/\s+/);
-      const [h, m] = parts[0].split(':').map(Number);
-      return {
+      const price = parseFloat(parts[1]) || 0;
+      const cumVolume = parseInt(parts[2]) || 0;
+      const cumAmount = parseFloat(parts[3]) || 0;
+      points.push({
         time: parts[0],
-        price: parseFloat(parts[1]) || 0,
-        volume: parseInt(parts[2]) || 0,
-        amount: parseFloat(parts[3]) || 0,
-      };
-    });
+        price,
+        volume: cumVolume - prevVolume,
+        amount: cumAmount - prevAmount,
+      });
+      prevVolume = cumVolume;
+      prevAmount = cumAmount;
+    }
+    return points;
   } catch { return []; }
 }
 
