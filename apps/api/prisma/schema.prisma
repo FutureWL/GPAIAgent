@@ -96,6 +96,7 @@ model Strategy {
   likes      Like[]
   author     User      @relation(fields: [authorId], references: [id])
   stock      Stock?    @relation(fields: [stockCode], references: [code])
+  aiGenerations AIGeneration[]
 }
 
 model Backtest {
@@ -137,14 +138,16 @@ model Like {
 model AIGeneration {
   id         String   @id @default(cuid())
   userId     String
-  stockCode  String
+  stockCode  String?
   stockName  String?
   prompt     String
-  result     String   // AI 返回的分析内容
-  riskLevel  String?  // risk_high / profit_high / neutral / avoid
+  result     String
+  riskLevel  String?
+  strategyId String?
   model      String   @default("MiniMax-Text-01")
   createdAt  DateTime @default(now())
 
   user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  stock      Stock    @relation(fields: [stockCode], references: [code])
+  stock      Stock?   @relation(fields: [stockCode], references: [code])
+  strategy   Strategy? @relation(fields: [strategyId], references: [id])
 }
