@@ -226,6 +226,64 @@ export class StocksService {
     return { success: true };
   }
 
+  // 批量获取实时行情（用于 Header 滚动条、首页行情卡片）
+  async getBatchQuotes(codes: string[]): Promise<RealTimeQuote[]> {
+    if (!codes.length) return [];
+
+    // 东方财富批量行情API (免费，无需key)
+    const secids = codes.map((c) => {
+      const pure = c.replace(/^(sh|sz)/, '');
+      return pure.startsWith('6') ? `1.${pure}` : `0.${pure}`;
+    }).join(',');
+
+    const url = `https://push2.eastmoney.com/api/qt/ulist.np/get?secids=${secids}&fields=f12,f14,f2,f3,f4,f5,f15,f16,f17,f18`;
+
+    try {
+      const resp = await fetch(url, {
+        headers: { 'User-Agent': 'Mozilla/5.0' },
+        signal: AbortSignal.timeout(5000),
+      });
+      if (!resp.ok) return codes.map((c) => this.mockQuote(c));
+
+      const json = await resp.json() as { data: any };
+      const list: any[] = json.data?.diff ?? [];
+      return list.map((d: any) => ({
+        code: d.f12,
+        name: d.f14,
+        price: d.f2 / 100,
+        change: d.f4 / 100,
+        changePercent: d.f3 / 100,
+        volume: d.f5,
+        high: d.f15 / 100,
+        low: d.f16 / 100,
+        open: d.f17 / 100,
+        preClose: d.f18 / 100,
+        market: d.f12?.startsWith('6') ? 'sh' : 'sz',
+      }));
+    } catch {
+      return codes.map((c) => this.mockQuote(c));
+    }
+  }
+
+  private mockQuote(code: string): RealTimeQuote {
+    const base = this.mockPrice(code);
+    const change = this.mockChange();
+    return {
+      code,
+      name: '',
+      price: base,
+      change,
+      changePercent: this.mockChangePercent(),
+      volume: this.mockVolume(),
+      amount: 0,
+      high: base * 1.02,
+      low: base * 0.98,
+      open: base * 0.99,
+      preClose: base - change,
+      market: code.startsWith('6') || code.startsWith('sh') ? 'sh' : 'sz',
+    };
+  }
+
   // ============ 模拟行情数据（正式环境替换） ============
 
   private mockPrice(code: string): number {

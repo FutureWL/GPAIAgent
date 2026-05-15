@@ -12,6 +12,17 @@ export class StocksController {
     return this.stocksService.search(query ?? '');
   }
 
+  /** 批量实时行情 - 支持任意股票代码 */
+  @Get('quotes')
+  async getQuotes(@Query('codes') codes: string) {
+    if (!codes) {
+      // 默认返回主要指数
+      return this.stocksService.getBatchQuotes(['sh000001', 'sz399001', 'sz399006']);
+    }
+    const list = codes.split(',').map((c) => c.trim()).filter(Boolean);
+    return this.stocksService.getBatchQuotes(list);
+  }
+
   @Get(':code')
   getByCode(@Param('code') code: string) {
     return this.stocksService.getByCode(code);

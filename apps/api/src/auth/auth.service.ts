@@ -157,8 +157,8 @@ export class AuthService {
 
   async getUserStats(userId: string) {
     const [postCount, commentCount, stockCount] = await Promise.all([
-      this.prismaService.post.count({ where: { authorId: userId } }),
-      this.prismaService.postComment.count({ where: { userId } }),
+      this.prismaService.Post.count({ where: { authorId: userId } }),
+      this.prismaService.PostComment.count({ where: { userId } }),
       this.prismaService.userStock.count({ where: { userId } }),
     ]);
     return { postCount, commentCount, stockCount };

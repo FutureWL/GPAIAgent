@@ -4,12 +4,12 @@ import UserCard from '@/components/user/user-card';
 
 async function getMe() {
   const cookieStore = await cookies();
-  const token = cookieStore.get('access_token');
+  const token = cookieStore.get('gpai_access_token');
   if (!token) return null;
   try {
     const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
     const res = await fetch(`${API_URL}/auth/me`, {
-      headers: { Cookie: `access_token=${token.value}` },
+      headers: { Cookie: `gpai_access_token=${token.value}` },
       cache: 'no-store',
     });
     if (!res.ok) return null;
@@ -21,12 +21,12 @@ async function getMe() {
 
 async function getStats() {
   const cookieStore = await cookies();
-  const token = cookieStore.get('access_token');
+  const token = cookieStore.get('gpai_access_token');
   if (!token) return null;
   try {
     const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
     const res = await fetch(`${API_URL}/auth/stats`, {
-      headers: { Cookie: `access_token=${token.value}` },
+      headers: { Cookie: `gpai_access_token=${token.value}` },
       cache: 'no-store',
     });
     if (!res.ok) return null;
