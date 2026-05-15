@@ -1,10 +1,11 @@
-import { Body, Controller, Get, Post, Req, Res, UnauthorizedException, UseGuards } from '@nestjs/common';
+import { Body, Controller, Get, Patch, Post, Req, Res, UnauthorizedException, UseGuards } from '@nestjs/common';
 import { Request, Response } from 'express';
 import { AuthService } from './auth.service';
 import { JwtCookieAuthGuard, AuthedRequest } from './auth.guard';
 import { REFRESH_TOKEN_COOKIE } from './auth.constants';
 import { LoginDto } from './dto/login.dto';
 import { RegisterDto } from './dto/register.dto';
+import { UpdateProfileDto } from './dto/update-profile.dto';
 
 @Controller('auth')
 export class AuthController {
@@ -29,7 +30,22 @@ export class AuthController {
   @UseGuards(JwtCookieAuthGuard)
   @Get('me')
   async me(@Req() req: AuthedRequest) {
-    return this.authService.me(req.user.sub);
+    return this.authService.getFullProfile(req.user.sub);
+  }
+
+  @UseGuards(JwtCookieAuthGuard)
+  @Patch('me')
+  async updateProfile(
+    @Req() req: AuthedRequest,
+    @Body() dto: UpdateProfileDto,
+  ) {
+    return this.authService.updateProfile(req.user.sub, dto);
+  }
+
+  @UseGuards(JwtCookieAuthGuard)
+  @Get('stats')
+  async getStats(@Req() req: AuthedRequest) {
+    return this.authService.getUserStats(req.user.sub);
   }
 
   @Post('refresh')

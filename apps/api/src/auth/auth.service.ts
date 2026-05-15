@@ -17,6 +17,15 @@ type SafeUser = {
   username: string;
   name: string | null;
   avatar: string | null;
+  email?: string | null;
+  bio?: string | null;
+  createdAt?: Date;
+  membership?: {
+    level: string;
+    type: string;
+    status: string;
+    expiredAt: Date;
+  } | null;
 };
 
 @Injectable()
@@ -87,6 +96,72 @@ export class AuthService {
       throw new UnauthorizedException('User not found');
     }
     return user;
+  }
+
+  async getFullProfile(userId: string): Promise<SafeUser> {
+    const user = await this.prismaService.user.findUnique({
+      where: { id: userId },
+      select: {
+        id: true,
+        username: true,
+        name: true,
+        avatar: true,
+        email: true,
+        bio: true,
+        createdAt: true,
+        membership: {
+          select: {
+            level: true,
+            type: true,
+            status: true,
+            expiredAt: true,
+          },
+        },
+      },
+    });
+    if (!user) {
+      throw new UnauthorizedException('User not found');
+    }
+    return user;
+  }
+
+  async updateProfile(userId: string, dto: { name?: string; bio?: string; avatar?: string; email?: string }): Promise<SafeUser> {
+    const user = await this.prismaService.user.update({
+      where: { id: userId },
+      data: {
+        name: dto.name ?? undefined,
+        bio: dto.bio ?? undefined,
+        avatar: dto.avatar ?? undefined,
+        email: dto.email ?? undefined,
+      },
+      select: {
+        id: true,
+        username: true,
+        name: true,
+        avatar: true,
+        email: true,
+        bio: true,
+        createdAt: true,
+        membership: {
+          select: {
+            level: true,
+            type: true,
+            status: true,
+            expiredAt: true,
+          },
+        },
+      },
+    });
+    return user;
+  }
+
+  async getUserStats(userId: string) {
+    const [postCount, commentCount, stockCount] = await Promise.all([
+      this.prismaService.post.count({ where: { authorId: userId } }),
+      this.prismaService.postComment.count({ where: { userId } }),
+      this.prismaService.userStock.count({ where: { userId } }),
+    ]);
+    return { postCount, commentCount, stockCount };
   }
 
   async refresh(refreshToken: string, res: Response): Promise<void> {
