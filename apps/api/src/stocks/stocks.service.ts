@@ -1,6 +1,22 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 
+// 东方财富实时行情类型
+export interface RealTimeQuote {
+  code: string;       // 股票代码
+  name: string;       // 股票名称
+  price: number;      // 当前价格
+  change: number;     // 涨跌额
+  changePercent: number; // 涨跌幅(%)
+  volume: number;     // 成交量
+  amount: number;     // 成交额
+  high: number;       // 最高价
+  low: number;        // 最低价
+  open: number;       // 开盘价
+  preClose: number;   // 昨收价
+  market: string;     // 市场(sz/sh)
+}
+
 // 模拟股票数据（正式环境替换为真实行情数据源）
 const MOCK_STOCKS = [
   { code: '600519', name: '贵州茅台', market: 'sh', type: 'stock' },
@@ -28,6 +44,44 @@ const MOCK_STOCKS = [
 @Injectable()
 export class StocksService {
   constructor(private readonly prismaService: PrismaService) {}
+
+  // 东方财富实时行情API (免费，无需key)
+  // 文档: https://push2.eastmoney.com/api/qt/stock/get
+  // fields: f43=最新价, f44=涨跌额, f45=涨跌幅, f46=成交量, f47=成交额, f48=最高, f49=最低, f50=开盘, f51=昨收
+  private async fetchRealTimeQuote(code: string): Promise<RealTimeQuote | null> {
+    // 判断市场: 6开头为上海, 0/3开头为深圳
+    const secid = code.startsWith('6') ? `1.${code}` : `0.${code}`;
+    const url = `https://push2.eastmoney.com/api/qt/stock/get?secid=${secid}&fields=f43,f44,f45,f46,f47,f48,f49,f50,f51,f57,f58`;
+
+    try {
+      const resp = await fetch(url, {
+        headers: { 'User-Agent': 'Mozilla/5.0' },
+        signal: AbortSignal.timeout(5000),
+      });
+      if (!resp.ok) return null;
+
+      const json = await resp.json() as { data: any };
+      const d = json.data;
+      if (!d) return null;
+
+      return {
+        code: d.f57,
+        name: d.f58,
+        price: parseFloat((d.f43 / 100).toFixed(2)),
+        change: parseFloat((d.f44 / 100).toFixed(2)),
+        changePercent: parseFloat((d.f45 / 100).toFixed(2)),
+        volume: d.f46,
+        amount: d.f47,
+        high: parseFloat((d.f48 / 100).toFixed(2)),
+        low: parseFloat((d.f49 / 100).toFixed(2)),
+        open: parseFloat((d.f50 / 100).toFixed(2)),
+        preClose: parseFloat((d.f51 / 100).toFixed(2)),
+        market: code.startsWith('6') ? 'sh' : 'sz',
+      };
+    } catch {
+      return null;
+    }
+  }
 
   // 确保股票在数据库中存在，不存在则创建
   async ensureStock(code: string, name: string, market: string, type = 'stock') {
@@ -86,7 +140,11 @@ export class StocksService {
       throw new NotFoundException('股票不存在');
     }
 
-    // 附加模拟行情数据（正式环境替换为真实数据）
+    // 获取真实行情数据，失败时降级到模拟数据
+    const quote = await this.fetchRealTimeQuote(code);
+    if (quote) {
+      return { ...stock, ...quote };
+    }
     return {
       ...stock,
       price: this.mockPrice(code),
