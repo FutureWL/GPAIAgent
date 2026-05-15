@@ -1,29 +1,25 @@
 "use client";
 
 import React from "react";
-import { List, useTable } from "@refinedev/antd";
-import { Table, Space, Tag, Button, Typography } from "antd";
-import { EditOutlined, DeleteOutlined, EyeOutlined } from "@ant-design/icons";
+import { List } from "@refinedev/antd";
+import { Table, Space, Button, Typography } from "antd";
+import { EditOutlined, DeleteOutlined } from "@ant-design/icons";
 import type { IResourceComponentsProps } from "@refinedev/core";
 
 const { Title } = Typography;
 
 export default function 股票管理ListPage() {
-  const { tableProps } = useTable({
-    resource: "stocks",
-  });
-
   return (
     <>
       <Title level={3}>股票管理</Title>
       <List>
-        <Table {...tableProps} rowKey="id">
+        <Table dataSource={[]} rowKey="id">
           <Table.Column dataIndex="id" title="ID" width={80} />
           <Table.Column dataIndex="createdAt" title="创建时间" width={180} />
           <Table.Column
             title="操作"
             width={120}
-            render={(_, record: any) => (
+            render={() => (
               <Space size="small">
                 <Button icon=<EditOutlined /> size="small" />
                 <Button icon=<DeleteOutlined /> size="small" danger />

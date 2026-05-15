@@ -10,6 +10,11 @@
   },
   "dependencies": {
     "@ant-design/icons": "^6.2.3",
+    "@refinedev/antd": "^6.0.3",
+    "@refinedev/core": "^5.0.12",
+    "@refinedev/react-router-v6": "^4.6.2",
+    "@refinedev/simple-rest": "^6.0.1",
+    "antd": "^6.3.7",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "echarts": "^5.5.0",

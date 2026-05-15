@@ -99,7 +99,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
         <Menu
           theme="dark"
           mode="inline"
-          selectedKey={pathname}
+          selectedKeys={[pathname]}
           items={menuItems}
           style={{ marginTop: 8 }}
         />
