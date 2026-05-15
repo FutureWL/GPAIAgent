@@ -1,0 +1,42 @@
+module.exports = {
+  apps: [
+    {
+      name: 'gpaiagent-dev-api',
+      cwd: '/home/weilai/apps/gpaia-agent-dev/apps/api',
+      script: 'node',
+      args: 'dist/main.js',
+      interpreter: 'none',
+      wait_ready: true,
+      kill_timeout: 15000,
+      out_file: '/home/weilai/logs/gpaiagent-dev-api-out.log',
+      error_file: '/home/weilai/logs/gpaiagent-dev-api-err.log',
+      env: {
+        NODE_ENV: 'development',
+        PORT: '3001',
+DATABASE_URL: 'postgresql://postgres:postgres@localhost:5432/gpaiagent_dev?schema=public',
+        JWT_ACCESS_SECRET: 'dev-access-secret-change-in-prod',
+        JWT_REFRESH_SECRET: 'dev-refresh-secret-change-in-prod',
+        WEB_ORIGIN: 'http://localhost:3000',
+      },
+    },
+    {
+      name: 'gpaiagent-dev-web',
+      cwd: '/home/weilai/apps/gpaia-agent-dev/apps/web',
+      script: 'node_modules/next/dist/bin/next',
+      args: 'start -p 3000',
+      interpreter: 'none',
+      wait_ready: true,
+      kill_timeout: 15000,
+      out_file: '/home/weilai/logs/gpaiagent-dev-web-out.log',
+      error_file: '/home/weilai/logs/gpaiagent-dev-web-err.log',
+      env: {
+        NODE_ENV: 'development',
+        PORT: '3000',
+DATABASE_URL: 'postgresql://postgres:postgres@localhost:5432/gpaiagent_dev?schema=public',
+        API_URL: 'http://localhost:3001',
+        NEXT_PUBLIC_API_URL: 'http://localhost:3001',
+        WEB_ORIGIN: 'http://localhost:3000',
+      },
+    },
+  ],
+};

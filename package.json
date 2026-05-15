@@ -5,13 +5,26 @@
   "packageManager": "pnpm@11.1.1",
   "scripts": {
     "dev": "pnpm --parallel -r dev",
+    "dev:api": "dotenv-cli -e apps/api/.env.dev -- pnpm --filter @gpaiagent/api dev",
+    "dev:web": "dotenv-cli -e apps/web/.env.dev -- pnpm --filter @gpaiagent/web dev",
+    "dev:db:push": "dotenv-cli -e apps/api/.env.dev -- pnpm --filter @gpaiagent/api db:push",
+    "dev:db:studio": "dotenv-cli -e apps/api/.env.dev -- pnpm --filter @gpaiagent/api db:studio",
+    "dev:db:generate": "dotenv-cli -e apps/api/.env.dev -- pnpm --filter @gpaiagent/api db:generate",
+    "prod:api": "dotenv-cli -e apps/api/.env.prod -- pnpm --filter @gpaiagent/api start",
+    "prod:web": "dotenv-cli -e apps/web/.env.prod -- pnpm --filter @gpaiagent/web start",
     "build": "pnpm -r build",
-    "lint": "pnpm -r lint"
+    "lint": "pnpm -r lint",
+    "db:push:dev": "dotenv-cli -e apps/api/.env.dev -- pnpm --filter @gpaiagent/api db:push",
+    "db:push:prod": "dotenv-cli -e apps/api/.env.prod -- pnpm --filter @gpaiagent/api db:push",
+    "db:generate:dev": "dotenv-cli -e apps/api/.env.dev -- pnpm --filter @gpaiagent/api db:generate"
   },
   "devEngines": {
     "packageManager": {
       "name": "pnpm",
       "version": "^11.1.1"
     }
+  },
+  "devDependencies": {
+    "dotenv-cli": "^11.0.0"
   }
 }

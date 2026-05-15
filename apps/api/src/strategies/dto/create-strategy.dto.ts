@@ -1,4 +1,4 @@
-import { ArrayNotEmpty, IsArray, IsString } from 'class-validator';
+import { IsArray, IsOptional, IsString, IsIn } from 'class-validator';
 
 export class CreateStrategyDto {
   @IsString()
@@ -11,7 +11,15 @@ export class CreateStrategyDto {
   content!: string;
 
   @IsArray()
-  @ArrayNotEmpty()
   @IsString({ each: true })
   tags!: string[];
+
+  @IsOptional()
+  @IsString()
+  stockCode?: string;
+
+  @IsOptional()
+  @IsString()
+  @IsIn(['risk_high', 'profit_high', 'neutral', 'avoid'])
+  riskLevel?: string;
 }

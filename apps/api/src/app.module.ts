@@ -5,6 +5,9 @@ import { AuthModule } from './auth/auth.module';
 import { StrategiesModule } from './strategies/strategies.module';
 import { CommentsModule } from './comments/comments.module';
 import { BacktestsModule } from './backtests/backtests.module';
+import { StocksModule } from './stocks/stocks.module';
+import { MembershipModule } from './membership/membership.module';
+import { AiModule } from './ai/ai.module';
 
 @Module({
   imports: [
@@ -17,6 +20,9 @@ import { BacktestsModule } from './backtests/backtests.module';
     StrategiesModule,
     CommentsModule,
     BacktestsModule,
+    StocksModule,
+    MembershipModule,
+    AiModule,
   ],
 })
 export class AppModule {}

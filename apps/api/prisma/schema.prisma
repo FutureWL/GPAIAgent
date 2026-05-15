@@ -17,25 +17,86 @@ model User {
   updatedAt    DateTime   @updatedAt
   passwordHash String
   username     String     @unique
+
   comments     Comment[]
   likes        Like[]
   strategies   Strategy[]
+  stocks       UserStock[]
+  membership   Membership?
+  aiGenerations AIGeneration[]
+}
+
+model Stock {
+  id        String   @id @default(cuid())
+  code      String   @unique // 如 600519
+  name      String             // 如 贵州茅台
+  market    String             // sh / sz / bj
+  type      String   @default("stock") // stock / bond / fund / index
+  createdAt DateTime @default(now())
+
+  userStocks UserStock[]
+  strategies Strategy[]
+  aiGenerations AIGeneration[]
+}
+
+model UserStock {
+  id        String   @id @default(cuid())
+  userId    String
+  stockId   String
+  addedAt   DateTime @default(now())
+
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  stock     Stock    @relation(fields: [stockId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, stockId])
+}
+
+enum MembershipLevel {
+  NORMAL   // 普通会员
+  PRIVATE  // 私人会员
+}
+
+enum MembershipType {
+  TRIAL    // 体验卡（7天）
+  MONTHLY  // 月卡
+}
+
+enum MembershipStatus {
+  ACTIVE
+  EXPIRED
+}
+
+model Membership {
+  id        String   @id @default(cuid())
+  userId    String   @unique
+  level     MembershipLevel
+  type      MembershipType
+  startedAt DateTime @default(now())
+  expiredAt DateTime
+  status    MembershipStatus @default(ACTIVE)
+
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
 
 model Strategy {
-  id          String     @id @default(cuid())
+  id          String   @id @default(cuid())
   title       String
   description String
   content     String
   tags        String[]
-  viewCount   Int        @default(0)
-  createdAt   DateTime   @default(now())
-  updatedAt   DateTime   @updatedAt
+  stockCode   String?  // 关联股票代码，可选
+  riskLevel   String?  // risk_high / profit_high / neutral / avoid
+  viewCount   Int      @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
   authorId    String
-  backtests   Backtest[]
-  comments    Comment[]
-  likes       Like[]
-  author      User       @relation(fields: [authorId], references: [id])
+
+  backtests  Backtest[]
+  comments   Comment[]
+  likes      Like[]
+  author     User      @relation(fields: [authorId], references: [id])
+  stock      Stock?    @relation(fields: [stockCode], references: [code])
+  aiGenerations AIGeneration[]
 }
 
 model Backtest {
@@ -46,6 +107,7 @@ model Backtest {
   summary    String?
   createdAt  DateTime @default(now())
   strategyId String
+
   strategy   Strategy @relation(fields: [strategyId], references: [id], onDelete: Cascade)
 }
 
@@ -56,6 +118,7 @@ model Comment {
   updatedAt  DateTime @updatedAt
   authorId   String
   strategyId String
+
   author     User     @relation(fields: [authorId], references: [id])
   strategy   Strategy @relation(fields: [strategyId], references: [id], onDelete: Cascade)
 }
@@ -65,8 +128,26 @@ model Like {
   createdAt  DateTime @default(now())
   userId     String
   strategyId String
+
   strategy   Strategy @relation(fields: [strategyId], references: [id], onDelete: Cascade)
   user       User     @relation(fields: [userId], references: [id])
 
   @@unique([userId, strategyId])
+}
+
+model AIGeneration {
+  id         String   @id @default(cuid())
+  userId     String
+  stockCode  String?
+  stockName  String?
+  prompt     String
+  result     String
+  riskLevel  String?
+  strategyId String?
+  model      String   @default("MiniMax-Text-01")
+  createdAt  DateTime @default(now())
+
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  stock      Stock?   @relation(fields: [stockCode], references: [code])
+  strategy   Strategy? @relation(fields: [strategyId], references: [id])
 }

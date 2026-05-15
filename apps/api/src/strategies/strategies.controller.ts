@@ -8,10 +8,17 @@ export class StrategiesController {
   constructor(private readonly strategiesService: StrategiesService) {}
 
   @Get()
-  async list(@Query('take') take?: string, @Query('skip') skip?: string) {
+  async list(
+    @Query('take') take?: string,
+    @Query('skip') skip?: string,
+    @Query('stockCode') stockCode?: string,
+    @Query('riskLevel') riskLevel?: string,
+  ) {
     return this.strategiesService.list({
       take: take ? Number(take) : undefined,
       skip: skip ? Number(skip) : undefined,
+      stockCode,
+      riskLevel,
     });
   }
 
