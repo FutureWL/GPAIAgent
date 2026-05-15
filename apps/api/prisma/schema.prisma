@@ -22,8 +22,12 @@ model User {
   likes        Like[]
   strategies   Strategy[]
   stocks       UserStock[]
-  membership   Membership?
+  membership    Membership?
   aiGenerations AIGeneration[]
+  posts         Post[]
+  postLikes     PostLike[]     @relation("PostLikeUser")
+  postComments  PostComment[]  @relation("PostCommentUser")
+  postBookmarks PostBookmark[] @relation("PostBookmarkUser")
 }
 
 model Stock {
@@ -150,4 +154,65 @@ model AIGeneration {
   user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   stock      Stock?   @relation(fields: [stockCode], references: [code])
   strategy   Strategy? @relation(fields: [strategyId], references: [id])
+}
+
+// ============ 博客/帖子相关 ============
+
+model Post {
+  id          String   @id @default(cuid())
+  title       String
+  content     String
+  excerpt     String?
+  coverImage  String?
+  type        String   @default("article") // article | video
+  videoUrl    String?
+  viewCount   Int      @default(0)
+  likeCount   Int      @default(0)
+  commentCount Int     @default(0)
+  shareCount  Int      @default(0)
+  status      String   @default("published") // published | draft
+  authorId    String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  author    User           @relation(fields: [authorId], references: [id], onDelete: Cascade)
+  likes     PostLike[]     @relation("PostLikedBy")
+  comments  PostComment[]  @relation("PostCommentPost")
+  bookmarks PostBookmark[] @relation("PostBookmarkedBy")
+}
+
+model PostLike {
+  id        String   @id @default(cuid())
+  createdAt DateTime @default(now())
+  userId    String
+  postId    String
+
+  post  Post  @relation("PostLikedBy", fields: [postId], references: [id], onDelete: Cascade)
+  user  User  @relation("PostLikeUser", fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, postId])
+}
+
+model PostComment {
+  id        String   @id @default(cuid())
+  content   String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  userId    String
+  postId    String
+
+  post Post  @relation("PostCommentPost", fields: [postId], references: [id], onDelete: Cascade)
+  user User @relation("PostCommentUser", fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model PostBookmark {
+  id        String   @id @default(cuid())
+  createdAt DateTime @default(now())
+  userId    String
+  postId    String
+
+  post Post  @relation("PostBookmarkedBy", fields: [postId], references: [id], onDelete: Cascade)
+  user User @relation("PostBookmarkUser", fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, postId])
 }

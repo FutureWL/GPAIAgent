@@ -8,6 +8,7 @@ import { BacktestsModule } from './backtests/backtests.module';
 import { StocksModule } from './stocks/stocks.module';
 import { MembershipModule } from './membership/membership.module';
 import { AiModule } from './ai/ai.module';
+import { PostsModule } from './posts/posts.module';
 
 @Module({
   imports: [
@@ -23,6 +24,7 @@ import { AiModule } from './ai/ai.module';
     StocksModule,
     MembershipModule,
     AiModule,
+    PostsModule,
   ],
 })
 export class AppModule {}
