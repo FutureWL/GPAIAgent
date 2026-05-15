@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 
 interface Quote {
@@ -19,10 +19,15 @@ interface Quote {
   time: string;
 }
 
+interface MinutePoint {
+  time: string;
+  price: number;
+  volume: number;
+  amount: number;
+}
+
 function toTencentCode(code: string): string {
-  if (code.startsWith('sh') || code.startsWith('sz')) {
-    return code;
-  }
+  if (code.startsWith('sh') || code.startsWith('sz')) return code;
   return code.startsWith('6') ? `sh${code}` : `sz${code}`;
 }
 
@@ -53,8 +58,6 @@ async function fetchStockQuote(code: string): Promise<Quote | null> {
     const change = price - prevClose;
     const changePercent = prevClose ? (change / prevClose * 100) : 0;
 
-    // 名称：上证指数/深证成指 等指数用 parts[40]，股票用 parts[1]
-    // 腾讯返回 GBK 编码，中文会乱码，用预设名称映射
     const rawName = parts[40] || parts[1] || '';
     const NAME_MAP: Record<string, string> = {
       '000001': '上证指数', '399001': '深证成指', '399006': '创业板指',
@@ -62,7 +65,6 @@ async function fetchStockQuote(code: string): Promise<Quote | null> {
       '600036': '招商银行', '601888': '中国中免',
     };
     const numPart = qtCode.replace(/^(sh|sz)/i, '');
-    // 只有纯中文或英文字符才用 rawName，否则查映射表
     const isReadable = (s: string) => /^[\u4e00-\u9fa5a-zA-Z0-9（）()、。]+$/.test(s) && s.length <= 12;
     const name = isReadable(rawName) ? rawName : (NAME_MAP[numPart] || numPart);
 
@@ -81,9 +83,153 @@ async function fetchStockQuote(code: string): Promise<Quote | null> {
       date,
       time,
     };
-  } catch {
-    return null;
-  }
+  } catch { return null; }
+}
+
+// 从腾讯分时接口获取分时数据
+async function fetchMinuteData(code: string): Promise<MinutePoint[]> {
+  const qtCode = toTencentCode(code);
+  const url = `https://web.ifzq.gtimg.cn/appstock/app/minute/query?code=${qtCode}`;
+  try {
+    const resp = await fetch(url, {
+      headers: { Referer: 'https://finance.qq.com', 'User-Agent': 'Mozilla/5.0' },
+      signal: AbortSignal.timeout(10000),
+    });
+    if (!resp.ok) return [];
+    const json = await resp.json();
+    const raw = json?.data?.[qtCode]?.data?.data;
+    if (!Array.isArray(raw)) return [];
+    return raw.map((line: string) => {
+      const parts = line.trim().split(/\s+/);
+      const [h, m] = parts[0].split(':').map(Number);
+      return {
+        time: parts[0],
+        price: parseFloat(parts[1]) || 0,
+        volume: parseInt(parts[2]) || 0,
+        amount: parseFloat(parts[3]) || 0,
+      };
+    });
+  } catch { return []; }
+}
+
+// 分时图 ECharts 组件（动态导入避免 SSR 问题）
+function MinuteChart({ data, preClose, up }: { data: MinutePoint[]; preClose: number; up: boolean }) {
+  const chartRef = useRef<HTMLDivElement>(null);
+  const chartInstanceRef = useRef<any>(null);
+
+  useEffect(() => {
+    if (!data.length || !chartRef.current) return;
+
+    let echarts: any;
+    import('echarts').then((mod) => {
+      echarts = mod;
+      if (!chartRef.current) return;
+
+      if (chartInstanceRef.current) {
+        chartInstanceRef.current.dispose();
+      }
+      const chart = echarts.init(chartRef.current, 'dark');
+      chartInstanceRef.current = chart;
+
+      const times = data.map((d) => d.time);
+      const prices = data.map((d) => d.price);
+      const avgPrices = data.map((d) => d.price); // 简化：价格即均线
+
+      // 成交量柱状
+      const volumes = data.map((d) => d.volume);
+
+      const option = {
+        backgroundColor: 'transparent',
+        animation: false,
+        grid: [
+          { x: '0%', y: '0%', width: '100%', height: '65%' },
+          { x: '0%', y: '70%', width: '100%', height: '25%' },
+        ],
+        xAxis: [
+          {
+            type: 'category', data: times, gridIndex: 0,
+            boundaryGap: false, axisLine: { lineStyle: { color: '#334155' } },
+            axisTick: { show: false }, axisLabel: { show: false },
+            splitLine: { show: true, lineStyle: { color: '#1e293b', type: 'dashed' } },
+          },
+          {
+            type: 'category', data: times, gridIndex: 1,
+            boundaryGap: false, axisLine: { lineStyle: { color: '#334155' } },
+            axisTick: { show: false }, axisLabel: { color: '#64748b', fontSize: 10 },
+            splitLine: { show: false },
+          },
+        ],
+        yAxis: [
+          {
+            scale: true, gridIndex: 0,
+            splitNumber: 4,
+            axisLine: { show: false },
+            axisTick: { show: false },
+            axisLabel: { color: '#64748b', fontSize: 10 },
+            splitLine: { lineStyle: { color: '#1e293b', type: 'dashed' } },
+            position: 'right',
+          },
+          {
+            scale: true, gridIndex: 1,
+            splitNumber: 2, show: false,
+          },
+        ],
+        series: [
+          {
+            name: '价格',
+            type: 'line', data: prices, xAxisIndex: 0, yAxisIndex: 0,
+            smooth: false, symbol: 'none',
+            lineStyle: { width: 1.5, color: up ? '#ef4444' : '#22c55e' },
+            areaStyle: {
+              color: {
+                type: 'linear', x: 0, y: 0, x2: 0, y2: 1,
+                colorStops: [
+                  { offset: 0, color: up ? 'rgba(239,68,68,0.25)' : 'rgba(34,197,94,0.25)' },
+                  { offset: 1, color: 'rgba(0,0,0,0)' },
+                ],
+              },
+            },
+            markLine: {
+              silent: true,
+              symbol: 'none',
+              lineStyle: { color: '#64748b', type: 'dashed', width: 1 },
+              data: [{ yAxis: preClose }],
+              label: { show: false },
+            },
+          },
+          {
+            name: '成交量',
+            type: 'bar', xAxisIndex: 1, yAxisIndex: 1,
+            data: volumes,
+            barWidth: '60%',
+            itemStyle: { color: (params: any) => {
+              const p = prices[params.dataIndex];
+              return p >= preClose ? 'rgba(239,68,68,0.5)' : 'rgba(34,197,94,0.5)';
+            }},
+          },
+        ],
+      };
+
+      chart.setOption(option);
+    });
+
+    const handleResize = () => chartInstanceRef.current?.resize();
+    window.addEventListener('resize', handleResize);
+    return () => {
+      window.removeEventListener('resize', handleResize);
+      chartInstanceRef.current?.dispose();
+    };
+  }, [data, preClose, up]);
+
+  return (
+    <div className="bg-slate-800/50 border border-slate-700 rounded-xl overflow-hidden">
+      <div className="px-4 py-3 border-b border-slate-700 flex items-center justify-between">
+        <h2 className="text-sm font-medium text-white">分时图</h2>
+        <span className="text-xs text-slate-500">点击查看大图</span>
+      </div>
+      <div ref={chartRef} className="w-full" style={{ height: '320px' }} />
+    </div>
+  );
 }
 
 export default function StockDetailPage() {
@@ -92,6 +238,8 @@ export default function StockDetailPage() {
   const code = params.code as string;
 
   const [quote, setQuote] = useState<Quote | null>(null);
+  const [minuteData, setMinuteData] = useState<MinutePoint[]>([]);
+  const [minuteLoading, setMinuteLoading] = useState(false);
   const [loading, setLoading] = useState(true);
   const [notFound, setNotFound] = useState(false);
 
@@ -103,13 +251,16 @@ export default function StockDetailPage() {
     } else {
       setQuote(q);
       setNotFound(false);
+      // 加载分时数据
+      setMinuteLoading(true);
+      const mins = await fetchMinuteData(code);
+      setMinuteData(mins);
+      setMinuteLoading(false);
     }
     setLoading(false);
   };
 
-  useEffect(() => {
-    if (code) loadQuote();
-  }, [code]);
+  useEffect(() => { if (code) loadQuote(); }, [code]);
 
   const up = quote ? parseFloat(quote.change) >= 0 : true;
 
@@ -120,8 +271,7 @@ export default function StockDetailPage() {
         onClick={() => router.back()}
         className="flex items-center gap-1 text-sm text-slate-400 hover:text-white transition-colors"
       >
-        <span>←</span>
-        <span>返回行情</span>
+        <span>←</span><span>返回行情</span>
       </button>
 
       {/* 加载状态 */}
@@ -153,9 +303,7 @@ export default function StockDetailPage() {
               <div>
                 <h1 className="text-2xl font-bold text-white">{quote.name}</h1>
                 <p className="text-sm text-slate-400 mt-1">{quote.code.toUpperCase()}</p>
-                <p className="text-xs text-slate-500 mt-0.5">
-                  {quote.date} {quote.time} 更新
-                </p>
+                <p className="text-xs text-slate-500 mt-0.5">{quote.date} {quote.time} 更新</p>
               </div>
               <div className="text-right">
                 <div className="text-3xl font-bold text-white">{quote.price}</div>
@@ -164,8 +312,6 @@ export default function StockDetailPage() {
                 </div>
               </div>
             </div>
-
-            {/* 涨跌指示条 */}
             <div className="mt-4 h-1.5 bg-slate-700 rounded-full overflow-hidden">
               <div
                 className={`h-full rounded-full transition-all ${up ? 'bg-red-500' : 'bg-green-500'}`}
@@ -173,6 +319,29 @@ export default function StockDetailPage() {
               />
             </div>
           </div>
+
+          {/* 分时图 */}
+          {minuteLoading ? (
+            <div className="bg-slate-800/50 border border-slate-700 rounded-xl overflow-hidden">
+              <div className="px-4 py-3 border-b border-slate-700">
+                <h2 className="text-sm font-medium text-white">分时图</h2>
+              </div>
+              <div className="flex items-center justify-center" style={{ height: '320px' }}>
+                <div className="animate-pulse text-slate-400 text-sm">加载分时数据...</div>
+              </div>
+            </div>
+          ) : minuteData.length > 0 ? (
+            <MinuteChart data={minuteData} preClose={parseFloat(quote.preClose)} up={up} />
+          ) : (
+            <div className="bg-slate-800/50 border border-slate-700 rounded-xl overflow-hidden">
+              <div className="px-4 py-3 border-b border-slate-700">
+                <h2 className="text-sm font-medium text-white">分时图</h2>
+              </div>
+              <div className="flex items-center justify-center" style={{ height: '320px' }}>
+                <div className="text-slate-500 text-sm">分时数据暂不可用</div>
+              </div>
+            </div>
+          )}
 
           {/* 关键指标 */}
           <div className="grid grid-cols-2 gap-3">
@@ -184,10 +353,7 @@ export default function StockDetailPage() {
               { label: '成交量', value: quote.volume },
               { label: '成交额', value: quote.amount },
             ].map((item) => (
-              <div
-                key={item.label}
-                className="bg-slate-800/50 border border-slate-700 rounded-xl px-4 py-3"
-              >
+              <div key={item.label} className="bg-slate-800/50 border border-slate-700 rounded-xl px-4 py-3">
                 <div className="text-xs text-slate-400 mb-1">{item.label}</div>
                 <div className="text-lg font-mono font-medium text-white">{item.value}</div>
               </div>
@@ -210,52 +376,25 @@ export default function StockDetailPage() {
               <h2 className="text-sm font-medium text-white">实时行情</h2>
             </div>
             <div className="p-4 space-y-3">
-              <div className="flex justify-between text-sm">
-                <span className="text-slate-400">现价</span>
-                <span className={`font-mono font-medium ${up ? 'text-red-400' : 'text-green-400'}`}>
-                  {quote.price}
-                </span>
-              </div>
-              <div className="flex justify-between text-sm">
-                <span className="text-slate-400">涨跌额</span>
-                <span className={`font-mono ${up ? 'text-red-400' : 'text-green-400'}`}>
-                  {up ? '+' : ''}{quote.change}
-                </span>
-              </div>
-              <div className="flex justify-between text-sm">
-                <span className="text-slate-400">涨跌幅</span>
-                <span className={`font-mono ${up ? 'text-red-400' : 'text-green-400'}`}>
-                  {up ? '+' : ''}{quote.changePercent}%
-                </span>
-              </div>
-              <div className="flex justify-between text-sm">
-                <span className="text-slate-400">今开</span>
-                <span className="font-mono text-white">{quote.open}</span>
-              </div>
-              <div className="flex justify-between text-sm">
-                <span className="text-slate-400">昨收</span>
-                <span className="font-mono text-white">{quote.preClose}</span>
-              </div>
-              <div className="flex justify-between text-sm">
-                <span className="text-slate-400">最高</span>
-                <span className="font-mono text-red-400">{quote.high}</span>
-              </div>
-              <div className="flex justify-between text-sm">
-                <span className="text-slate-400">最低</span>
-                <span className="font-mono text-green-400">{quote.low}</span>
-              </div>
-              <div className="flex justify-between text-sm">
-                <span className="text-slate-400">成交量</span>
-                <span className="font-mono text-white">{quote.volume}</span>
-              </div>
-              <div className="flex justify-between text-sm">
-                <span className="text-slate-400">成交额</span>
-                <span className="font-mono text-white">{quote.amount}</span>
-              </div>
-              <div className="flex justify-between text-sm">
-                <span className="text-slate-400">更新时间</span>
-                <span className="font-mono text-slate-400">{quote.date} {quote.time}</span>
-              </div>
+              {[
+                { label: '现价', value: quote.price, color: up },
+                { label: '涨跌额', value: `${up ? '+' : ''}${quote.change}`, color: up },
+                { label: '涨跌幅', value: `${up ? '+' : ''}${quote.changePercent}%`, color: up },
+                { label: '今开', value: quote.open },
+                { label: '昨收', value: quote.preClose },
+                { label: '最高', value: quote.high, color: true },
+                { label: '最低', value: quote.low, color: false },
+                { label: '成交量', value: quote.volume },
+                { label: '成交额', value: quote.amount },
+                { label: '更新时间', value: `${quote.date} ${quote.time}` },
+              ].map((item) => (
+                <div key={item.label} className="flex justify-between text-sm">
+                  <span className="text-slate-400">{item.label}</span>
+                  <span className={`font-mono ${item.color === true ? 'text-red-400' : item.color === false ? 'text-green-400' : 'text-white'}`}>
+                    {item.value}
+                  </span>
+                </div>
+              ))}
             </div>
           </div>
         </>
