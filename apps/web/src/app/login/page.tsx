@@ -1,9 +1,8 @@
 'use client';
 
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
 import { useState } from 'react';
-import { apiFetch } from '../../lib/api';
+import { useRouter } from 'next/navigation';
 
 export default function LoginPage() {
   const router = useRouter();
@@ -16,16 +15,27 @@ export default function LoginPage() {
     e.preventDefault();
     setError(null);
     setLoading(true);
+
+    const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
+
     try {
-      await apiFetch('/auth/login', {
+      const res = await fetch(`${API_URL}/auth/login`, {
         method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
         body: JSON.stringify({ username, password }),
       });
-      router.replace('/');
+
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error((data as { message?: string }).message || '登录失败');
+      }
+
+      // 用 Next.js router 导航，强制刷新
+      await router.push('/home');
       router.refresh();
     } catch (err) {
       setError(err instanceof Error ? err.message : '登录失败');
-    } finally {
       setLoading(false);
     }
   }
@@ -43,6 +53,7 @@ export default function LoginPage() {
               onChange={(e) => setUsername(e.target.value)}
               className="mt-1 w-full rounded-md bg-slate-950/50 border border-slate-700 px-3 py-2 outline-none focus:border-slate-500"
               autoComplete="username"
+              required
             />
           </label>
 
@@ -54,12 +65,14 @@ export default function LoginPage() {
               type="password"
               className="mt-1 w-full rounded-md bg-slate-950/50 border border-slate-700 px-3 py-2 outline-none focus:border-slate-500"
               autoComplete="current-password"
+              required
             />
           </label>
 
           {error ? <div className="text-sm text-red-300">{error}</div> : null}
 
           <button
+            type="submit"
             disabled={loading}
             className="w-full rounded-md bg-white text-slate-900 py-2 font-medium disabled:opacity-60"
           >
@@ -68,7 +81,7 @@ export default function LoginPage() {
         </form>
 
         <div className="mt-4 text-sm text-slate-300">
-          还没有账号？{' '}
+          还没有账号？
           <Link href="/register" className="text-white underline underline-offset-4">
             去注册
           </Link>

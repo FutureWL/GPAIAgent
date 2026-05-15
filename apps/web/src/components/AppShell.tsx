@@ -1,20 +1,39 @@
 'use client';
 
 import Link from 'next/link';
-import { usePathname } from 'next/navigation';
-import { useAuth } from '@/hooks/useAuth';
+import { usePathname, useRouter } from 'next/navigation';
 
 const NAV_ITEMS = [
   { href: '/home', label: '首页', icon: '🏠' },
   { href: '/watchlist', label: '自选', icon: '⭐' },
+  { href: '/market', label: '行情', icon: '📈' },
   { href: '/strategies', label: '策略广场', icon: '📊' },
   { href: '/strategies/new', label: '发布策略', icon: '✍️' },
   { href: '/membership', label: '会员中心', icon: '👑' },
 ];
 
-export default function AppShell({ children }: { children: React.ReactNode }) {
+type AppShellProps = {
+  children: React.ReactNode;
+  username?: string;
+};
+
+export default function AppShell({ children, username }: AppShellProps) {
   const pathname = usePathname();
-  const { me, loading, logout } = useAuth(false);
+  const router = useRouter();
+
+  async function handleLogout() {
+    try {
+      const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
+      await fetch(`${API_URL}/auth/logout`, {
+        method: 'POST',
+        credentials: 'include',
+      });
+    } catch {
+      // ignore
+    }
+    router.push('/login');
+    router.refresh();
+  }
 
   return (
     <div className="flex h-screen bg-slate-900 text-white">
@@ -29,7 +48,9 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
         {/* 导航 */}
         <nav className="flex-1 overflow-y-auto py-3">
           {NAV_ITEMS.map((item) => {
-            const active = pathname === item.href || (item.href !== '/home' && pathname.startsWith(item.href));
+            const active =
+              pathname === item.href ||
+              (item.href !== '/home' && pathname.startsWith(item.href));
             return (
               <Link
                 key={item.href}
@@ -49,23 +70,21 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
 
         {/* 用户信息 */}
         <div className="p-4 border-t border-slate-700">
-          {loading ? (
-            <div className="text-xs text-slate-400">加载中...</div>
-          ) : me ? (
+          {username ? (
             <div className="flex items-center justify-between">
               <div className="text-sm truncate">
-                <div className="truncate text-white font-medium">{me.username}</div>
+                <div className="truncate text-white font-medium">{username}</div>
                 <div className="truncate text-xs text-slate-400">已登录</div>
               </div>
               <button
-                onClick={logout}
+                onClick={handleLogout}
                 className="text-xs text-slate-400 hover:text-white ml-2 flex-shrink-0"
               >
                 退出
               </button>
             </div>
           ) : (
-            <div className="text-xs text-slate-400">未登录</div>
+            <div className="text-xs text-slate-400">加载中...</div>
           )}
         </div>
       </aside>
@@ -75,7 +94,11 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
         {/* 顶部栏 */}
         <header className="h-14 flex items-center justify-between px-6 border-b border-slate-700 flex-shrink-0 bg-slate-900/80">
           <div className="text-sm text-slate-300">
-            {NAV_ITEMS.find((item) => pathname === item.href || (item.href !== '/home' && pathname.startsWith(item.href)))?.label ?? 'GPAIAgent'}
+            {NAV_ITEMS.find(
+              (item) =>
+                pathname === item.href ||
+                (item.href !== '/home' && pathname.startsWith(item.href)),
+            )?.label ?? 'GPAIAgent'}
           </div>
           <div className="flex items-center gap-2 text-xs text-slate-400">
             <span className="text-green-400">●</span>
