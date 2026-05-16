@@ -9,30 +9,105 @@ type StockItem = {
   price: number;
   change: number;
   changePercent: number;
-  volume?: number;
+  volume?: number;       // 手
+  amount?: number;       // 万元
+  turnover?: number;      // %
+  circulateCap?: number;  // 亿元
+  totalCap?: number;      // 亿元
+  netInflow?: number;     // 万元
+  isIndex?: boolean;
 };
 
-// 主要股票池（覆盖沪深主板、创业板、科创板）
-const MAJOR_STOCKS = [
-  // 沪市
+// A股指数
+const INDEX_CODES = [
+  'sh000001','sz399001','sz399006','sz399005',
+  'sh000300','sh000016','sh000688','sz399901',
+  'sz399106','sh000905','sh000852','sz399303',
+  'sz399606','sh000015','sh000689','sz399550',
+  'sh000978','sz399328','sh000888','sh000001',
+];
+
+// 主要股票池
+const STOCK_CODES = [
   'sh600519','sh600036','sh601318','sh600887','sh601888','sh600030','sh601857',
-  'sh600276','sh600585','sh600690','sh600809','sh601012','sh600309','sh600887',
+  'sh600276','sh600585','sh600690','sh600809','sh601012','sh600309','sh600048',
   'sh601328','sh601166','sh600000','sh601398','sh601288','sh600016','sh600050',
-  'sh600048','sh601088','sh601668','sh601186','sh601601','sh600028','sh601899',
-  'sh603259','sh688981','sh688599','sh601985','sh601816','sh600837','sh600999',
-  'sh600900','sh600438','sh601225','sh600893','sh601633','sh600760','sh601169',
-  'sh600029','sh601991','sh601818','sh600745','sh603799','sh600132','sh600115',
-  'sh600170','sh600276','sh603288','sh600183','sh601888','sh600588',
-  // 深市
+  'sh601088','sh601668','sh601186','sh601601','sh600028','sh601899','sh600837',
+  'sh600999','sh600900','sh600438','sh601225','sh600893','sh601633','sh600760',
+  'sh601169','sh600029','sh601991','sh601818','sh600745','sh603799','sh600132',
+  'sh600115','sh603259','sh688981','sh688599','sh601985','sh601816','sh600028',
+  'sh603288','sh600183','sh600588','sh601166','sh601818',
   'sz000858','sz000333','sz002594','sz000001','sz000002','sz000651','sz000876',
   'sz002415','sz002475','sz002714','sz000568','sz000725','sz000063','sz002230',
   'sz002371','sz002460','sz002466','sz002497','sz002648','sz300750','sz300015',
   'sz300059','sz300122','sz300124','sz300274','sz300760','sz300896','sz300999',
   'sz301536','sz301587','sz000983','sz002352','sz300033','sz300408','sz300782',
-  'sz300014','sz300450','sz300012','sz300346','sz300529','sz300015','sz300760',
-  // 指数
-  'sh000001','sz399001','sz399006',
+  'sz300014','sz300450','sz300012','sz300346','sz300529',
 ];
+
+function fmtCap(v: number): string {
+  if (v >= 10000) return (v / 10000).toFixed(2) + '万亿';
+  if (v >= 1) return v.toFixed(0) + '亿';
+  return (v * 10000).toFixed(0) + '万';
+}
+
+function fmtAmount(v: number): string {
+  if (v >= 10000) return (v / 10000).toFixed(2) + '亿';
+  return v.toFixed(0) + '万';
+}
+
+function parseTencentLine(raw: string): StockItem | null {
+  try {
+    const eqIdx = raw.indexOf('=');
+    if (eqIdx < 0) return null;
+    const parts = raw.substring(eqIdx + 2).split('~');
+    if (parts.length < 10) return null;
+
+    // 指数: parts[1] 为空或 undefined
+    const isIndex = !parts[1] || parts[1] === parts[2];
+    const code = parts[2] || '';
+    const name = isIndex ? (parts[40] || parts[1] || code) : (parts[1] || code);
+    const price = parseFloat(parts[3]) || 0;
+    const change = parseFloat(parts[31]) || 0;
+    const changePercent = parseFloat(parts[32]) || 0;
+    const volume = parseInt(parts[6]) || 0;
+    const amount = parseFloat(parts[37]) || 0;
+    const turnover = parseFloat(parts[43]) || 0;
+    const totalCap = parseFloat(parts[44]) || 0;
+    const circulateCap = parseFloat(parts[45]) || 0;
+    const netInflow = parseFloat(parts[74]) || 0;
+
+    return {
+      code,
+      name: name.replace(/["\s]/g, ''),
+      price,
+      change,
+      changePercent,
+      volume,
+      amount,
+      turnover,
+      circulateCap,
+      totalCap,
+      netInflow,
+      isIndex,
+    };
+  } catch {
+    return null;
+  }
+}
+
+async function fetchQuotesBatch(codes: string[]): Promise<StockItem[]> {
+  const url = `https://qt.gtimg.cn/q=${codes.join(',')}`;
+  const resp = await fetch(url, {
+    headers: { Referer: 'https://finance.qq.com', 'User-Agent': 'Mozilla/5.0' },
+    signal: AbortSignal.timeout(15000),
+  });
+  if (!resp.ok) return [];
+  const buffer = await resp.arrayBuffer();
+  const text = new TextDecoder('gbk').decode(Buffer.from(buffer));
+  const lines = text.trim().split('\n');
+  return lines.map(parseTencentLine).filter(Boolean) as StockItem[];
+}
 
 export default function MarketPage() {
   const router = useRouter();
@@ -46,34 +121,35 @@ export default function MarketPage() {
   const fetchMarket = useCallback(async () => {
     setLoading(true);
     try {
-      // 通过后端代理调用腾讯行情接口（避免CORS）
-      const codes = MAJOR_STOCKS.join(',');
-      const res = await fetch(`/api/stocks/quotes?codes=${codes}`, {
-        signal: AbortSignal.timeout(15000),
-      });
-      if (!res.ok) throw new Error('接口失败');
-      const data = await res.json();
-      if (Array.isArray(data) && data.length > 0) {
-        setAllStocks(data);
-      } else {
-        throw new Error('空数据');
+      const BATCH = 50;
+      const allCodes = [...INDEX_CODES, ...STOCK_CODES];
+      const batches: string[][] = [];
+      for (let i = 0; i < allCodes.length; i += BATCH) {
+        batches.push(allCodes.slice(i, i + BATCH));
       }
+      const results = await Promise.all(batches.map(fetchQuotesBatch));
+      const merged = results.flat();
+
+      // 按成交量降序排
+      merged.sort((a, b) => (b.volume || 0) - (a.volume || 0));
+
+      // 去除重复
+      const seen = new Set<string>();
+      const unique = merged.filter(s => {
+        if (seen.has(s.code)) return false;
+        seen.add(s.code);
+        return true;
+      });
+
+      setAllStocks(unique);
     } catch {
-      // fallback：静态假数据
-      setAllStocks([
-        { code: '600519', name: '贵州茅台', price: 1688, change: 20.5, changePercent: 1.23 },
-        { code: '000858', name: '五粮液', price: 142.3, change: -1.8, changePercent: -1.25 },
-        { code: '601318', name: '中国平安', price: 45.6, change: 0.85, changePercent: 1.90 },
-        { code: '000001', name: '平安银行', price: 11.25, change: 0.15, changePercent: 1.35 },
-      ]);
+      setAllStocks([]);
     } finally {
       setLoading(false);
     }
   }, []);
 
-  useEffect(() => {
-    fetchMarket();
-  }, [fetchMarket]);
+  useEffect(() => { fetchMarket(); }, [fetchMarket]);
 
   useEffect(() => {
     if (!search.trim()) {
@@ -81,9 +157,7 @@ export default function MarketPage() {
     } else {
       const q = search.toUpperCase();
       setDisplayedStocks(
-        allStocks.filter(
-          (s) => s.code.includes(q) || s.name.includes(search)
-        ).slice(0, 50)
+        allStocks.filter((s) => s.code.includes(q) || s.name.includes(search)).slice(0, 100)
       );
     }
   }, [search, allStocks]);
@@ -92,7 +166,7 @@ export default function MarketPage() {
     <div className="space-y-4">
       <div>
         <h1 className="text-xl font-bold">行情</h1>
-        <p className="text-sm text-slate-400 mt-1">A股主要股票实时行情</p>
+        <p className="text-sm text-slate-400 mt-1">A股市场实时行情 · 共 {allStocks.length} 只</p>
       </div>
 
       <div className="flex gap-3">
@@ -113,7 +187,7 @@ export default function MarketPage() {
       <div className="bg-slate-800/50 border border-slate-700 rounded-xl overflow-hidden">
         <div className="px-4 py-2 border-b border-slate-700 flex items-center justify-between">
           <span className="text-xs text-slate-400">
-            {loading ? '加载中...' : `共 ${displayedStocks.length} 只股票`}
+            {loading ? '加载中...' : `共 ${displayedStocks.length} 只`}
           </span>
           <span className="text-xs text-green-400">● 实时</span>
         </div>
@@ -123,15 +197,19 @@ export default function MarketPage() {
           <div className="p-8 text-center text-slate-400 text-sm">暂无数据</div>
         ) : (
           <div className="overflow-x-auto">
-            <table className="w-full text-sm">
+            <table className="w-full text-xs">
               <thead>
-                <tr className="text-slate-400 text-xs border-b border-slate-700">
-                  <th className="text-left px-4 py-2 font-normal">代码</th>
-                  <th className="text-left px-4 py-2 font-normal">名称</th>
-                  <th className="text-right px-4 py-2 font-normal">现价</th>
-                  <th className="text-right px-4 py-2 font-normal">涨跌额</th>
-                  <th className="text-right px-4 py-2 font-normal">涨跌幅</th>
-                  <th className="text-right px-4 py-2 font-normal">成交量</th>
+                <tr className="text-slate-400 border-b border-slate-700">
+                  <th className="text-left px-3 py-2 font-normal">代码</th>
+                  <th className="text-left px-3 py-2 font-normal">名称</th>
+                  <th className="text-right px-3 py-2 font-normal">现价</th>
+                  <th className="text-right px-3 py-2 font-normal">涨跌</th>
+                  <th className="text-right px-3 py-2 font-normal">涨跌幅</th>
+                  <th className="text-right px-3 py-2 font-normal">成交额</th>
+                  <th className="text-right px-3 py-2 font-normal">换手率</th>
+                  <th className="text-right px-3 py-2 font-normal">流通市值</th>
+                  <th className="text-right px-3 py-2 font-normal">总市值</th>
+                  <th className="text-right px-3 py-2 font-normal">净流入</th>
                 </tr>
               </thead>
               <tbody>
@@ -143,17 +221,29 @@ export default function MarketPage() {
                       className="border-b border-slate-800 hover:bg-slate-700/30 cursor-pointer"
                       onClick={() => router.push(`/${locale}/stock/${s.code}`)}
                     >
-                      <td className="px-4 py-2.5 text-slate-400">{s.code}</td>
-                      <td className="px-4 py-2.5 font-medium">{s.name}</td>
-                      <td className="px-4 py-2.5 text-right">{s.price > 0 ? s.price.toFixed(2) : '-'}</td>
-                      <td className={`px-4 py-2.5 text-right ${up ? 'text-red-400' : 'text-green-400'}`}>
-                        {s.change > 0 ? '+' : ''}{s.change.toFixed(2)}
+                      <td className="px-3 py-2 text-slate-400">{s.code}</td>
+                      <td className="px-3 py-2 font-medium">{s.name}</td>
+                      <td className="px-3 py-2 text-right">{s.price > 0 ? s.price.toFixed(2) : '-'}</td>
+                      <td className={`px-3 py-2 text-right ${up ? 'text-red-400' : 'text-green-400'}`}>
+                        {up ? '+' : ''}{s.change.toFixed(2)}
                       </td>
-                      <td className={`px-4 py-2.5 text-right ${up ? 'text-red-400' : 'text-green-400'}`}>
+                      <td className={`px-3 py-2 text-right ${up ? 'text-red-400' : 'text-green-400'}`}>
                         {up ? '+' : ''}{s.changePercent.toFixed(2)}%
                       </td>
-                      <td className="px-4 py-2.5 text-right text-slate-400">
-                        {s.volume ? (s.volume / 10000).toFixed(0) + '万' : '-'}
+                      <td className="px-3 py-2 text-right text-slate-300">
+                        {s.amount ? fmtAmount(s.amount) : '-'}
+                      </td>
+                      <td className="px-3 py-2 text-right text-slate-300">
+                        {s.turnover ? s.turnover.toFixed(2) + '%' : '-'}
+                      </td>
+                      <td className="px-3 py-2 text-right text-slate-300">
+                        {s.circulateCap ? fmtCap(s.circulateCap) : '-'}
+                      </td>
+                      <td className="px-3 py-2 text-right text-slate-300">
+                        {s.totalCap ? fmtCap(s.totalCap) : '-'}
+                      </td>
+                      <td className={`px-3 py-2 text-right ${up ? 'text-red-400' : 'text-green-400'}`}>
+                        {s.netInflow ? (up ? '+' : '-') + fmtAmount(Math.abs(s.netInflow)) : '-'}
                       </td>
                     </tr>
                   );
