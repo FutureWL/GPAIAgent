@@ -51,7 +51,7 @@ export default function WatchlistPage() {
 
   const loadWatchlist = useCallback(async () => {
     try {
-      const data = await apiFetch<WatchlistItem[]>('/stocks/user');
+      const data = await apiFetch<WatchlistItem[]>('/api/stocks/user');
       setWatchlist(Array.isArray(data) ? data : []);
     } catch {
       setWatchlist([]);
@@ -82,7 +82,7 @@ export default function WatchlistPage() {
     setAdding(code);
     setError(null);
     try {
-      await apiFetch('/stocks/user', {
+      await apiFetch('/api/stocks/user', {
         method: 'POST',
         body: JSON.stringify({ stockCode: code }),
       });
@@ -102,7 +102,7 @@ export default function WatchlistPage() {
 
   async function removeStock(code: string) {
     try {
-      await apiFetch(`/stocks/user/${code}`, { method: 'DELETE' });
+      await apiFetch(`/api/stocks/user?stockCode=${code}`, { method: 'DELETE' });
       await loadWatchlist();
     } catch {
       // ignore

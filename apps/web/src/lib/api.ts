@@ -1,4 +1,5 @@
-export const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL ?? 'http://localhost:3001';
+// 空值时走相对路径，由 Next.js rewrites 转发到后端（前后端同域部署）
+export const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL ?? '';
 
 export async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> {
   const res = await fetch(`${API_BASE_URL}${path}`, {
