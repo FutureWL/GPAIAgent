@@ -8,8 +8,12 @@ export interface RealTimeQuote {
   price: number;      // 当前价格
   change: number;     // 涨跌额
   changePercent: number; // 涨跌幅(%)
-  volume: number;     // 成交量
-  amount: number;     // 成交额
+  volume: number;     // 成交量（手）
+  amount: number;     // 成交额（万元）
+  turnover: number;   // 换手率(%)
+  circulateCap: number; // 流通市值（亿元）
+  totalCap: number;   // 总市值（亿元）
+  netInflow: number;  // 净流入（万元）
   high: number;       // 最高价
   low: number;        // 最低价
   open: number;       // 开盘价
@@ -72,6 +76,10 @@ export class StocksService {
         changePercent: parseFloat((d.f45 / 100).toFixed(2)),
         volume: d.f46,
         amount: d.f47,
+        turnover: 0,
+        circulateCap: 0,
+        totalCap: 0,
+        netInflow: 0,
         high: parseFloat((d.f48 / 100).toFixed(2)),
         low: parseFloat((d.f49 / 100).toFixed(2)),
         open: parseFloat((d.f50 / 100).toFixed(2)),
@@ -316,22 +324,29 @@ export class StocksService {
         const preClose = parseFloat(parts[4]) || 0;
         const open = parseFloat(parts[5]) || 0;
         const volume = parseInt(parts[6]) || 0; // 手
-        const amount = parseFloat(parts[36]) || 0;
+        const amount = parseFloat(parts[36]) || 0; // 万元
         const change = parseFloat(parts[31]) || 0;
         const changePercent = parseFloat(parts[32]) || 0;
         const high = parseFloat(parts[34]) || 0;
         const low = parseFloat(parts[35]) || 0;
-        // 名称 parts[1] 是 GBK 会乱码，用 rawCode 判断市场
+        const turnover = parseFloat(parts[43]) || 0; // %
+        const totalCap = parseFloat(parts[44]) || 0; // 亿元
+        const circulateCap = parseFloat(parts[45]) || 0; // 亿元
+        const netInflow = parseFloat(parts[74]) || 0; // 万元
         const market = rawCode.startsWith('6') || rawCode.startsWith('5') ? 'sh' : 'sz';
 
         results.push({
           code: rawCode,
-          name: parts[1], // 可能乱码，但不影响
+          name: parts[1],
           price,
           change,
           changePercent,
           volume,
           amount,
+          turnover,
+          circulateCap,
+          totalCap,
+          netInflow,
           high,
           low,
           open,
@@ -364,6 +379,10 @@ export class StocksService {
       changePercent: this.mockChangePercent(),
       volume: this.mockVolume(),
       amount: 0,
+      turnover: 0,
+      circulateCap: 0,
+      totalCap: 0,
+      netInflow: 0,
       high: base * 1.02,
       low: base * 0.98,
       open: base * 0.99,
