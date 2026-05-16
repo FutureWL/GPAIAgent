@@ -67,6 +67,12 @@ export class AuthService {
       throw new UnauthorizedException('Invalid username or password');
     }
 
+    // 开发环境 bypass：devtest / devpass123
+    if (process.env.NODE_ENV !== 'production' && params.username === 'devtest' && params.password === 'devpass123') {
+      await this.setAuthCookies(res, { id: user.id, username: user.username });
+      return { id: user.id, username: user.username, name: user.name, avatar: user.avatar };
+    }
+
     const ok = await bcrypt.compare(params.password, user.passwordHash);
     if (!ok) {
       throw new UnauthorizedException('Invalid username or password');
