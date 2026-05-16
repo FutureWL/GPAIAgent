@@ -12,15 +12,27 @@ type StockItem = {
   volume?: number;
 };
 
-type EastMoneyStock = {
-  f12: string; // code
-  f14: string; // name
-  f2: number;  // price
-  f3: number;  // changePercent
-  f4: number;  // change
-  f5: number;  // volume
-  f6: number;  // amount
-};
+// 主要股票池（覆盖沪深主板、创业板、科创板）
+const MAJOR_STOCKS = [
+  // 沪市
+  'sh600519','sh600036','sh601318','sh600887','sh601888','sh600030','sh601857',
+  'sh600276','sh600585','sh600690','sh600809','sh601012','sh600309','sh600887',
+  'sh601328','sh601166','sh600000','sh601398','sh601288','sh600016','sh600050',
+  'sh600048','sh601088','sh601668','sh601186','sh601601','sh600028','sh601899',
+  'sh603259','sh688981','sh688599','sh601985','sh601816','sh600837','sh600999',
+  'sh600900','sh600438','sh601225','sh600893','sh601633','sh600760','sh601169',
+  'sh600029','sh601991','sh601818','sh600745','sh603799','sh600132','sh600115',
+  'sh600170','sh600276','sh603288','sh600183','sh601888','sh600588',
+  // 深市
+  'sz000858','sz000333','sz002594','sz000001','sz000002','sz000651','sz000876',
+  'sz002415','sz002475','sz002714','sz000568','sz000725','sz000063','sz002230',
+  'sz002371','sz002460','sz002466','sz002497','sz002648','sz300750','sz300015',
+  'sz300059','sz300122','sz300124','sz300274','sz300760','sz300896','sz300999',
+  'sz301536','sz301587','sz000983','sz002352','sz300033','sz300408','sz300782',
+  'sz300014','sz300450','sz300012','sz300346','sz300529','sz300015','sz300760',
+  // 指数
+  'sh000001','sz399001','sz399006',
+];
 
 export default function MarketPage() {
   const router = useRouter();
@@ -34,38 +46,20 @@ export default function MarketPage() {
   const fetchMarket = useCallback(async () => {
     setLoading(true);
     try {
-      // 从东方财富获取全市场行情（分页，每页100只）
-      const stocks: StockItem[] = [];
-      const pageSize = 50;
-      const totalPages = 20; // 取前1000只，覆盖主要股票
-
-      const results = await Promise.all(
-        Array.from({ length: totalPages }, (_, i) => {
-          const pn = i + 1;
-          return fetch(
-            `https://push2.eastmoney.com/api/qt/clist/get?pn=${pn}&pz=${pageSize}&po=1&np=1&fltt=2&invt=2&fid=f3&fs=m:0+t:6,m:0+t:13,m:1+t:2,m:1+t:23&fields=f12,f14,f2,f3,f4,f5,f6&_=${Date.now()}`
-          ).then(r => r.json()).catch(() => ({ data: { diff: [] } }));
-        })
-      );
-
-      for (const res of results) {
-        const diff = res?.data?.diff ?? [];
-        for (const s of diff) {
-          if (s.f12 && s.f14) {
-            stocks.push({
-              code: s.f12,
-              name: s.f14,
-              price: s.f2 ?? 0,
-              change: s.f4 ?? 0,
-              changePercent: s.f3 ?? 0,
-              volume: s.f5 ?? 0,
-            });
-          }
-        }
+      // 通过后端代理调用腾讯行情接口（避免CORS）
+      const codes = MAJOR_STOCKS.join(',');
+      const res = await fetch(`/api/stocks/quotes?codes=${codes}`, {
+        signal: AbortSignal.timeout(15000),
+      });
+      if (!res.ok) throw new Error('接口失败');
+      const data = await res.json();
+      if (Array.isArray(data) && data.length > 0) {
+        setAllStocks(data);
+      } else {
+        throw new Error('空数据');
       }
-      setAllStocks(stocks);
     } catch {
-      // fallback
+      // fallback：静态假数据
       setAllStocks([
         { code: '600519', name: '贵州茅台', price: 1688, change: 20.5, changePercent: 1.23 },
         { code: '000858', name: '五粮液', price: 142.3, change: -1.8, changePercent: -1.25 },
@@ -98,10 +92,9 @@ export default function MarketPage() {
     <div className="space-y-4">
       <div>
         <h1 className="text-xl font-bold">行情</h1>
-        <p className="text-sm text-slate-400 mt-1">A股全市场实时行情</p>
+        <p className="text-sm text-slate-400 mt-1">A股主要股票实时行情</p>
       </div>
 
-      {/* 搜索 */}
       <div className="flex gap-3">
         <input
           value={search}
@@ -117,7 +110,6 @@ export default function MarketPage() {
         </button>
       </div>
 
-      {/* 行情表格 */}
       <div className="bg-slate-800/50 border border-slate-700 rounded-xl overflow-hidden">
         <div className="px-4 py-2 border-b border-slate-700 flex items-center justify-between">
           <span className="text-xs text-slate-400">
@@ -126,7 +118,7 @@ export default function MarketPage() {
           <span className="text-xs text-green-400">● 实时</span>
         </div>
         {loading && allStocks.length === 0 ? (
-          <div className="p-8 text-center text-slate-400 text-sm">正在从东方财富获取行情数据...</div>
+          <div className="p-8 text-center text-slate-400 text-sm">正在获取行情数据...</div>
         ) : displayedStocks.length === 0 ? (
           <div className="p-8 text-center text-slate-400 text-sm">暂无数据</div>
         ) : (

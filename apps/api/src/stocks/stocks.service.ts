@@ -297,7 +297,8 @@ export class StocksService {
       });
       if (!resp.ok) return codes.map((c) => this.mockQuote(c));
 
-      const text = await resp.text();
+      const buffer = await resp.arrayBuffer();
+      const text = new TextDecoder('gbk').decode(Buffer.from(buffer));
       const lines = text.trim().split('\n');
 
       const results: RealTimeQuote[] = [];
