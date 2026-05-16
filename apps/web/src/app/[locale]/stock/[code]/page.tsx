@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import ReactECharts from 'echarts-for-react';
 
@@ -21,6 +21,23 @@ interface Quote {
 interface MinutePoint { time: string; price: number; volume: number; }
 
 interface DailyBar { date: string; open: number; close: number; high: number; low: number; volume: number; }
+
+type PeriodType = 'minute' | '5day' | 'day' | 'week' | 'month' | '1min' | '5min' | '15min' | '30min' | '60min';
+
+const PERIODS: { key: PeriodType; label: string }[] = [
+  { key: 'minute', label: '分时' },
+  { key: '5day', label: '5日' },
+  { key: 'day', label: '日K' },
+  { key: 'week', label: '周K' },
+  { key: 'month', label: '月K' },
+  { key: '1min', label: '1分钟' },
+  { key: '5min', label: '5分钟' },
+  { key: '15min', label: '15分钟' },
+  { key: '30min', label: '30分钟' },
+  { key: '60min', label: '60分钟' },
+];
+
+const MINUTE_PERIODS: PeriodType[] = ['1min', '5min', '15min', '30min', '60min'];
 
 const NAME_MAP: Record<string, string> = {
   '000001': '上证指数', '399001': '深证成指', '399006': '创业板指',
@@ -85,6 +102,61 @@ async function fetchMinuteData(code: string): Promise<MinutePoint[]> {
       points.push({ time, price, volume: Math.max(0, volume) });
     }
     return points;
+  } catch { return []; }
+}
+
+async function fetch5DayData(code: string): Promise<{ data: MinutePoint[]; preClose: number }> {
+  const qtCode = code.startsWith('6') ? `sh${code}` : `sz${code}`;
+  const url = `https://web.ifzq.gtimg.cn/appstock/app/minute/query?code=${qtCode}&_var=minutedata`;
+  try {
+    const resp = await fetch(url, { headers: { Referer: 'https://finance.qq.com', 'User-Agent': 'Mozilla/5.0' }, signal: AbortSignal.timeout(8000) });
+    if (!resp.ok) return { data: [], preClose: 0 };
+    const text = await resp.text();
+    const match = text.match(/=\s*(\{.*\})/);
+    if (!match) return { data: [], preClose: 0 };
+    const json = JSON.parse(match[1]);
+    const qtData = json?.data?.[qtCode]?.data;
+    if (!qtData) return { data: [], preClose: 0 };
+    const preClose = qtData.preClose || 0;
+    const days = qtData.days || [];
+    const allPoints: MinutePoint[] = [];
+    for (const day of days) {
+      const dayData = qtData[day] as string[];
+      if (!Array.isArray(dayData)) continue;
+      let prevVol = 0;
+      for (const line of dayData) {
+        const parts = line.trim().split(/\s+/);
+        if (parts.length < 3) continue;
+        const [h, m] = parts[0].split(':');
+        const time = `${day} ${h}:${m}`;
+        const price = parseFloat(parts[1]) || 0;
+        const cumVol = parseInt(parts[2]) || 0;
+        const volume = cumVol - prevVol;
+        prevVol = cumVol;
+        allPoints.push({ time, price, volume: Math.max(0, volume) });
+      }
+    }
+    return { data: allPoints, preClose };
+  } catch { return { data: [], preClose: 0 }; }
+}
+
+async function fetchPeriodData(code: string, period: string, count: number = 120): Promise<DailyBar[]> {
+  const qtCode = code.startsWith('6') ? `sh${code}` : `sz${code}`;
+  const url = `https://web.ifzq.gtimg.cn/appstock/app/fqkline/get?param=${qtCode},${period},,,${count},qfq`;
+  try {
+    const resp = await fetch(url, { headers: { Referer: 'https://finance.qq.com', 'User-Agent': 'Mozilla/5.0' }, signal: AbortSignal.timeout(8000) });
+    if (!resp.ok) return [];
+    const json = await resp.json();
+    const qtData = json?.data?.[qtCode]?.qfqdata;
+    if (!qtData || !Array.isArray(qtData) || qtData.length === 0) return [];
+    return qtData.map((item: any) => ({
+      date: String(item.day || item[0] || ''),
+      open: parseFloat(item.open || item[1] || 0),
+      close: parseFloat(item.close || item[2] || 0),
+      high: parseFloat(item.high || item[3] || 0),
+      low: parseFloat(item.low || item[4] || 0),
+      volume: parseInt(item.volume || item[5] || 0),
+    }));
   } catch { return []; }
 }
 
@@ -161,6 +233,21 @@ export default function StockDetailPage() {
   const [minuteLoading, setMinuteLoading] = useState(false);
   const [dailyLoading, setDailyLoading] = useState(false);
   const [notFound, setNotFound] = useState(false);
+  const [activePeriod, setActivePeriod] = useState<PeriodType>('minute');
+  const [showMore, setShowMore] = useState(false);
+  const [periodData, setPeriodData] = useState<DailyBar[]>([]);
+  const [periodLoading, setPeriodLoading] = useState(false);
+  const moreRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (moreRef.current && !moreRef.current.contains(e.target as Node)) {
+        setShowMore(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
 
   useEffect(() => {
     if (!code) return;
@@ -168,6 +255,8 @@ export default function StockDetailPage() {
     setQuote(null);
     setMinuteData([]);
     setDailyData([]);
+    setPeriodData([]);
+    setActivePeriod('minute');
 
     fetchStockQuote(code).then(q => {
       if (!q) { setNotFound(true); setLoading(false); return; }
@@ -189,6 +278,57 @@ export default function StockDetailPage() {
     }).catch(() => { setNotFound(true); })
     .finally(() => setLoading(false));
   }, [code]);
+
+  useEffect(() => {
+    if (!quote || activePeriod === 'minute' || activePeriod === '5day') return;
+    setPeriodLoading(true);
+    const periodMap: Record<string, string> = {
+      day: 'day', week: 'week', month: 'month',
+      '1min': '1min', '5min': '5min', '15min': '15min', '30min': '30min', '60min': '60min'
+    };
+    const period = periodMap[activePeriod];
+    if (!period) { setPeriodLoading(false); return; }
+    const count = MINUTE_PERIODS.includes(activePeriod) ? 300 : 120;
+    fetchPeriodData(code, period, count).then(data => {
+      setPeriodData(data);
+      setPeriodLoading(false);
+    });
+  }, [activePeriod, code, quote]);
+
+  const handlePeriodChange = (period: PeriodType) => {
+    if (period === 'minute' || period === '5day') {
+      setActivePeriod(period);
+      setShowMore(false);
+    } else {
+      setActivePeriod(period);
+      setShowMore(false);
+    }
+  };
+
+  const getChartTitle = () => {
+    const p = PERIODS.find(p => p.key === activePeriod);
+    return p?.label || '';
+  };
+
+  const renderChart = () => {
+    const preClose = quote ? parseFloat(quote.preClose) : 0;
+
+    if (activePeriod === 'minute') {
+      if (minuteLoading) return <div className="h-[360px] flex items-center justify-center text-slate-500">加载中...</div>;
+      if (minuteData.length === 0) return <div className="h-[360px] flex items-center justify-center text-slate-500">暂无分时数据</div>;
+      return <ReactECharts option={getMinuteChartOptions(minuteData, preClose)} style={{ height: 360 }} />;
+    }
+
+    if (activePeriod === '5day') {
+      if (minuteLoading) return <div className="h-[360px] flex items-center justify-center text-slate-500">加载中...</div>;
+      if (minuteData.length === 0) return <div className="h-[360px] flex items-center justify-center text-slate-500">暂无5日数据</div>;
+      return <ReactECharts option={getMinuteChartOptions(minuteData, preClose)} style={{ height: 360 }} />;
+    }
+
+    if (periodLoading) return <div className="h-[360px] flex items-center justify-center text-slate-500">加载中...</div>;
+    if (periodData.length === 0) return <div className="h-[360px] flex items-center justify-center text-slate-500">暂无K线数据</div>;
+    return <ReactECharts option={getCandlestickOptions(periodData)} style={{ height: 360 }} />;
+  };
 
   const up = quote ? parseFloat(quote.change) >= 0 : true;
 
@@ -246,27 +386,57 @@ export default function StockDetailPage() {
           </div>
 
           <div className="bg-slate-800 rounded-xl p-4">
-            <h2 className="text-lg font-semibold text-slate-200 mb-3">分时图</h2>
-            {minuteLoading ? (
-              <div className="h-[320px] flex items-center justify-center text-slate-500">加载中...</div>
-            ) : minuteData.length > 0 ? (
-              <ReactECharts option={getMinuteChartOptions(minuteData, parseFloat(quote.preClose))} style={{ height: 320 }} />
-            ) : (
-              <div className="h-[320px] flex items-center justify-center text-slate-500">暂无分时数据</div>
-            )}
-          </div>
-
-          <div className="bg-slate-800 rounded-xl p-4">
-            <h2 className="text-lg font-semibold text-slate-200 mb-3">
-              日K线（近{dailyData.length > 0 ? dailyData.length : ''}日）
-            </h2>
-            {dailyLoading ? (
-              <div className="h-[320px] flex items-center justify-center text-slate-500">加载K线数据...</div>
-            ) : dailyData.length > 0 ? (
-              <ReactECharts option={getCandlestickOptions(dailyData)} style={{ height: 320 }} />
-            ) : (
-              <div className="h-[320px] flex items-center justify-center text-slate-500">暂无K线数据（请先运行数据同步脚本）</div>
-            )}
+            <div className="flex items-center justify-between mb-3">
+              <h2 className="text-lg font-semibold text-slate-200">{getChartTitle()}</h2>
+              <div className="flex items-center gap-1">
+                {PERIODS.slice(0, 5).map(p => (
+                  <button
+                    key={p.key}
+                    onClick={() => handlePeriodChange(p.key)}
+                    className={`px-3 py-1.5 text-sm rounded-md transition-colors ${
+                      activePeriod === p.key
+                        ? 'bg-blue-600 text-white'
+                        : 'bg-slate-700 text-slate-300 hover:bg-slate-600'
+                    }`}
+                  >
+                    {p.label}
+                  </button>
+                ))}
+                <div className="relative" ref={moreRef}>
+                  <button
+                    onClick={() => setShowMore(!showMore)}
+                    className={`px-3 py-1.5 text-sm rounded-md transition-colors flex items-center gap-1 ${
+                      MINUTE_PERIODS.includes(activePeriod)
+                        ? 'bg-blue-600 text-white'
+                        : 'bg-slate-700 text-slate-300 hover:bg-slate-600'
+                    }`}
+                  >
+                    更多 <span>▾</span>
+                  </button>
+                  {showMore && (
+                    <div className="absolute right-0 top-full mt-1 bg-slate-700 rounded-md shadow-lg overflow-hidden z-10 min-w-[100px]">
+                      {MINUTE_PERIODS.map(p => {
+                        const periodInfo = PERIODS.find(pt => pt.key === p);
+                        return (
+                          <button
+                            key={p}
+                            onClick={() => handlePeriodChange(p)}
+                            className={`block w-full text-left px-3 py-2 text-sm transition-colors ${
+                              activePeriod === p
+                                ? 'bg-blue-600 text-white'
+                                : 'text-slate-300 hover:bg-slate-600'
+                            }`}
+                          >
+                            {periodInfo?.label}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+            {renderChart()}
           </div>
         </>
       )}
