@@ -15,6 +15,7 @@ import {
   ChevronRight,
   Settings,
   User as UserSwitch,
+  Search,
 } from 'lucide-react';
 
 interface User {
@@ -39,6 +40,7 @@ const navItems = (locale: string) => [
   { key: 'home', label: locale === 'zh' ? '首页' : 'Home', href: `/${locale}/home`, icon: <LayoutDashboard size={18} /> },
   { key: 'blog', label: locale === 'zh' ? '博客' : 'Blog', href: `/${locale}/blog`, icon: <FileText size={18} /> },
   { key: 'watchlist', label: locale === 'zh' ? '自选股' : 'Watchlist', href: `/${locale}/watchlist`, icon: <Star size={18} /> },
+  { key: 'stock-screen', label: locale === 'zh' ? '选股' : 'Stock Screen', href: `/${locale}/stock-screen`, icon: <Search size={18} /> },
   { key: 'market', label: locale === 'zh' ? '行情' : 'Market', href: `/${locale}/market`, icon: <LineChart size={18} /> },
   { key: 'strategies', label: locale === 'zh' ? '策略广场' : 'Strategies', href: `/${locale}/strategies`, icon: <BarChart2 size={18} /> },
   { key: 'membership', label: locale === 'zh' ? '会员中心' : 'Membership', href: `/${locale}/membership`, icon: <Crown size={18} /> },

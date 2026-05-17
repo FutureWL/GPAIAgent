@@ -8,6 +8,7 @@ import { BacktestsModule } from './backtests/backtests.module';
 import { StocksModule } from './stocks/stocks.module';
 import { MembershipModule } from './membership/membership.module';
 import { AiModule } from './ai/ai.module';
+import { StockScreenModule } from './stock-screen/stock-screen.module';
 import { PostsModule } from './posts/posts.module';
 
 @Module({
@@ -24,6 +25,7 @@ import { PostsModule } from './posts/posts.module';
     StocksModule,
     MembershipModule,
     AiModule,
+    StockScreenModule,
     PostsModule,
   ],
 })

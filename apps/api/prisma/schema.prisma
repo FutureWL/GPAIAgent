@@ -24,6 +24,7 @@ model User {
   stocks       UserStock[]
   membership    Membership?
   aiGenerations AIGeneration[]
+  stockScreens  StockScreen[]
   posts         Post[]
   postLikes     PostLike[]     @relation("PostLikeUser")
   postComments  PostComment[]  @relation("PostCommentUser")
@@ -42,6 +43,7 @@ model Stock {
   dailyData  StockDaily[]
   strategies Strategy[]
   aiGenerations AIGeneration[]
+  stockScreenResults StockScreenResult[]
 }
 
 model UserStock {
@@ -234,4 +236,35 @@ model PostBookmark {
   user User @relation("PostBookmarkUser", fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([userId, postId])
+}
+
+// ============ 选股相关 ============
+
+model StockScreen {
+  id               String   @id @default(cuid())
+  userId           String
+  title            String
+  description      String?
+  criteria         Json              // 筛选条件
+  aiRecommendation String?           // AI 补充建议
+  riskLevel        String?           // risk_high / profit_high / neutral / avoid
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  user    User                 @relation(fields: [userId], references: [id], onDelete: Cascade)
+  results StockScreenResult[]
+}
+
+model StockScreenResult {
+  id        String   @id @default(cuid())
+  screenId  String
+  stockId   String
+  rank      Int      @default(0)
+  aiComment String?  // AI 针对此股票的简要点评
+  createdAt DateTime @default(now())
+
+  screen StockScreen @relation(fields: [screenId], references: [id], onDelete: Cascade)
+  stock  Stock       @relation(fields: [stockId], references: [id])
+
+  @@unique([screenId, stockId])
 }
