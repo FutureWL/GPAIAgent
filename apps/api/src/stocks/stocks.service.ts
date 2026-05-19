@@ -324,11 +324,19 @@ export class StocksService {
     // minute / 5day 是实时分时，不入库
     if (period === 'minute') {
       const { points } = await this.fetchTodayMinute(code);
-      return points.map(p => ({ date: p.time, open: p.price, close: p.price, high: p.price, low: p.price, volume: p.volume }));
+      if (points.length > 0) {
+        return points.map(p => ({ date: p.time, open: p.price, close: p.price, high: p.price, low: p.price, volume: p.volume }));
+      }
+      // Fallback: 外部 API 不可达时，从 DB 日K数据构建近似分时
+      return this.klineFromDailyDb(code, 'day', count);
     }
     if (period === '5day') {
       const { points } = await this.fetch5DayMinute(code);
-      return points.map(p => ({ date: p.time, open: p.price, close: p.price, high: p.price, low: p.price, volume: p.volume }));
+      if (points.length > 0) {
+        return points.map(p => ({ date: p.time, open: p.price, close: p.price, high: p.price, low: p.price, volume: p.volume }));
+      }
+      // Fallback: 从 DB 日K数据构建近似分时
+      return this.klineFromDailyDb(code, '5day', count);
     }
 
     // 分钟周期: 1min/5min/15min/30min/60min
@@ -368,6 +376,33 @@ export class StocksService {
     return dbBars;
   }
 
+  // minute/5day 外部 API 不可达时，从 DB stockDaily 数据构建近似 KBar 列表
+  // minute: 将 stockDaily 数据每条展开为一个"分时点"（开盘时刻，close 价格）
+  // 5day: 将多个交易日 stockDaily 串联，每条日K展开为一个分时点
+  private async klineFromDailyDb(code: string, period: 'day' | '5day', count = 120): Promise<KBar[]> {
+    const stock = await this.prismaService.stock.findUnique({ where: { code } });
+    if (!stock) return [];
+
+    const dbRecords = await this.prismaService.stockDaily.findMany({
+      where: { stockId: stock.id },
+      orderBy: { date: 'desc' },
+      take: period === '5day' ? 5 : 1,
+    });
+    if (dbRecords.length === 0) return [];
+
+    // 每条日K转为一个分时点（date + 09:30 = 开盘时刻，close 价格）
+    return dbRecords
+      .map(r => ({
+        date: `${r.date.toISOString().slice(0, 10)} 09:30`,
+        open: r.close,
+        close: r.close,
+        high: r.close,
+        low: r.close,
+        volume: r.volume,
+      }))
+      .slice(0, count);
+  }
+
   // 实时行情（供 /stocks/:code/quote 路由使用）
   // 外部行情接口失败时，从数据库取最新日K数据作为 fallback
   async getRealtimeQuote(code: string): Promise<RealTimeQuote | null> {
@@ -385,7 +420,35 @@ export class StocksService {
     });
     const lastBar = bars[0];
 
-    // Fallback: stock 表自身的价格字段（市场同步时写入的最近价）
+    // Fallback 2: 从 StockQuote 取最新快照（MarketSyncService 定时同步的实时数据）
+    const latestQuote = await this.prismaService.stockQuote.findFirst({
+      where: { stockId: stock.id },
+      orderBy: { capturedAt: 'desc' },
+    });
+
+    // StockQuote 字段更完整，优先使用
+    if (latestQuote) {
+      return {
+        code: stock.code,
+        name: stock.name,
+        price: latestQuote.price,
+        change: latestQuote.change,
+        changePercent: latestQuote.changePct,
+        volume: latestQuote.volume,
+        amount: latestQuote.amount,
+        turnover: latestQuote.turnover ?? 0,
+        circulateCap: latestQuote.circulateCap ?? 0,
+        totalCap: latestQuote.marketCap ?? 0,
+        netInflow: latestQuote.netInflow ?? 0,
+        high: latestQuote.high,
+        low: latestQuote.low,
+        open: latestQuote.open,
+        preClose: latestQuote.preClose,
+        market: stock.market,
+      };
+    }
+
+    // Fallback 3: stock 表自身的价格字段（市场同步时写入的最近价）
     // Prisma Stock 类型不包含这些字段，用 any 断言绕过（Schema 后续扩展后会移除）
     const s = stock as any;
 

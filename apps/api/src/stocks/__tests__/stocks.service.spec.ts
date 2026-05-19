@@ -122,6 +122,7 @@ describe('StocksService', () => {
       mockFetch.mockResolvedValueOnce({ ok: false });
       mockPrismaService.stock.findUnique.mockResolvedValue(mockStock);
       mockPrismaService.stockPeriodKline.findMany.mockResolvedValue([]);
+      mockPrismaService.stockQuote.findFirst.mockResolvedValue(null);
 
       const result = await service.getRealtimeQuote('000001');
 
@@ -133,6 +134,49 @@ describe('StocksService', () => {
       expect(result!.open).toBe(0);
       expect(result!.high).toBe(0);
       expect(result!.low).toBe(0);
+    });
+
+    it('外部API失败时从StockQuote快照返回完整行情数据', async () => {
+      // 外部API失败
+      mockFetch.mockResolvedValueOnce({ ok: false });
+      // DB stock 存在
+      mockPrismaService.stock.findUnique.mockResolvedValue(mockStock);
+      // StockPeriodKline 有数据但不是最新
+      mockPrismaService.stockPeriodKline.findMany.mockResolvedValue([{
+        id: 'bar-001', stockId: 'stock-001', period: 'day',
+        date: new Date('2026-05-15'),
+        open: 11.0, close: 11.2, high: 11.5, low: 10.9, volume: 500000,
+        createdAt: new Date(),
+      }]);
+      // StockQuote 有最新快照（由 MarketSyncService 定时写入）
+      mockPrismaService.stockQuote.findFirst.mockResolvedValue({
+        id: 'quote-001', stockId: 'stock-001',
+        price: 18100.50, change: 156.23, changePct: 0.87,
+        open: 17950.00, high: 18150.00, low: 17900.00,
+        volume: 3500000, amount: 628000000,
+        turnover: 0.35, preClose: 17944.27,
+        marketCap: 2270000000000, circulateCap: 2260000000000,
+        netInflow: 5200000000, capturedAt: new Date('2026-05-19 10:30:00'),
+      });
+
+      const result = await service.getRealtimeQuote('000001');
+
+      expect(result).not.toBeNull();
+      expect(result!.code).toBe('000001');
+      expect(result!.name).toBe('平安银行');
+      // StockQuote 优先于 StockPeriodKline
+      expect(result!.price).toBe(18100.50);
+      expect(result!.change).toBe(156.23);
+      expect(result!.changePercent).toBe(0.87);
+      expect(result!.volume).toBe(3500000);
+      expect(result!.amount).toBe(628000000);
+      expect(result!.open).toBe(17950.00);
+      expect(result!.high).toBe(18150.00);
+      expect(result!.low).toBe(17900.00);
+      expect(result!.preClose).toBe(17944.27);
+      expect(result!.totalCap).toBe(2270000000000);
+      expect(result!.circulateCap).toBe(2260000000000);
+      expect(result!.netInflow).toBe(5200000000);
     });
 
     it('股票不存在时返回null', async () => {
@@ -151,6 +195,9 @@ describe('StocksService', () => {
       });
       mockPrismaService.stock.findUnique.mockResolvedValue(mockStock);
       mockPrismaService.stockPeriodKline.findMany.mockResolvedValue([]);
+      // stockQuote.findFirst 若未 reset 会残留上一个测试的 mock 实现
+      mockPrismaService.stockQuote.findFirst.mockReset();
+      mockPrismaService.stockQuote.findFirst.mockResolvedValue(null);
 
       const result = await service.getRealtimeQuote('000001');
 
