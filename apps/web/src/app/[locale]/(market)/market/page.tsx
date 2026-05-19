@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useCallback } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
+import { fmtCap, fmtAmount } from '@/lib/stock-utils';
 
 type StockItem = {
   code: string;
@@ -44,17 +45,6 @@ const STOCK_CODES = [
   'sz301536','sz301587','sz000983','sz002352','sz300033','sz300408','sz300782',
   'sz300014','sz300450','sz300012','sz300346','sz300529',
 ];
-
-function fmtCap(v: number): string {
-  if (v >= 10000) return (v / 10000).toFixed(2) + '万亿';
-  if (v >= 1) return v.toFixed(0) + '亿';
-  return (v * 10000).toFixed(0) + '万';
-}
-
-function fmtAmount(v: number): string {
-  if (v >= 10000) return (v / 10000).toFixed(2) + '亿';
-  return v.toFixed(0) + '万';
-}
 
 function parseTencentLine(raw: string): StockItem | null {
   try {

@@ -32,11 +32,11 @@ export default function AppShell({ children, me, locale = 'zh' }: AppShellProps)
       </div>
       {/* 主内容区 */}
       <div className="flex-1 flex flex-col min-w-0">
-        {/* 顶部行情 ticker: z-10（层次最低） */}
-        <div className="relative z-10">
+        {/* 顶部行情 ticker: z-30（在 Header 之上滚动，不被遮盖） */}
+        <div className="relative z-30">
           <StockTicker />
         </div>
-        {/* 顶部导航栏: z-20（高于 ticker） */}
+        {/* 顶部导航栏: z-20 */}
         <div className="relative z-20">
           <Header locale={locale as 'zh' | 'en'} me={me} />
         </div>

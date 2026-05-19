@@ -3,6 +3,7 @@
 import { useEffect, useState, useRef } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import ReactECharts from 'echarts-for-react';
+import { fmtCap, fmtAmount, getQtPrefix } from '@/lib/stock-utils';
 
 interface Quote {
   code: string;
@@ -51,24 +52,6 @@ const NAME_MAP: Record<string, string> = {
   '600887': '伊利股份', '600030': '中信证券',
   '601888': '中国中免', '300750': '宁德时代', '688981': '中芯国际',
 };
-
-function fmtCap(v: number): string {
-  if (v >= 10000) return (v / 10000).toFixed(2) + '万亿';
-  if (v >= 1) return v.toFixed(2) + '亿';
-  return (v * 10000).toFixed(0) + '万';
-}
-
-function fmtAmount(v: number): string {
-  if (v >= 10000) return (v / 10000).toFixed(2) + '亿';
-  return v.toFixed(2) + '万';
-}
-
-// 判断市场前缀（复用 stocks.service.ts 的同一套逻辑）
-function getQtPrefix(code: string): string {
-  // 指数：000开头（沪指、沪深300）、399开头（深证、创业板）
-  if (code.startsWith('000') || code.startsWith('399')) return 'sh';
-  return code.startsWith('6') || code.startsWith('5') ? 'sh' : 'sz';
-}
 
 // 实时行情（经本地 API → 东方财富）
 async function fetchStockQuote(code: string): Promise<Quote | null> {

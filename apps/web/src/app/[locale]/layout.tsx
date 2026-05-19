@@ -1,6 +1,7 @@
 import { getMessages, getLocale } from 'next-intl/server';
 import { NextIntlClientProvider } from 'next-intl';
 import AppShell from '@/components/layout/appshell';
+import ToasterProvider from '@/components/toaster-provider';
 
 async function getMe() {
   try {
@@ -33,6 +34,7 @@ export default async function LocaleLayout({
     <html lang={locale} suppressHydrationWarning>
       <body>
         <NextIntlClientProvider messages={messages}>
+          <ToasterProvider />
           <AppShell me={me} locale={locale}>
             {children}
           </AppShell>

@@ -3,22 +3,18 @@
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { useTheme } from 'next-themes';
-import { Globe, Sun, Moon, Monitor } from 'lucide-react';
+import { Globe, Sun, Moon, Monitor, User, Settings, LayoutDashboard, LogOut } from 'lucide-react';
+import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
+import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
 import {
-  Avatar,
-  Dropdown,
-  Tag,
-  Badge,
-  Button,
-  Tooltip,
-} from 'antd';
-import type { MenuProps } from 'antd';
-import {
-  UserOutlined,
-  LogoutOutlined,
-  DashboardOutlined,
-  SettingOutlined,
-} from '@ant-design/icons';
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 
 interface User {
   id: string;
@@ -39,8 +35,18 @@ interface HeaderProps {
   me?: User | null;
 }
 
-const MEMBERSHIP_COLORS: Record<string, string> = { NORMAL: 'gold', PRIVATE: 'purple' };
-const MEMBERSHIP_LABELS: Record<string, string> = { NORMAL: '普通会员', PRIVATE: '私人会员' };
+const MEMBERSHIP_LABELS_ZH: Record<string, string> = { NORMAL: '普通会员', PRIVATE: '私人会员' };
+const MEMBERSHIP_LABELS_EN: Record<string, string> = { NORMAL: 'Normal', PRIVATE: 'Private' };
+const MEMBERSHIP_BADGE_VARIANTS: Record<string, 'default' | 'secondary'> = {
+  NORMAL: 'default',
+  PRIVATE: 'secondary',
+};
+
+const THEME_OPTIONS = [
+  { key: 'light', labelZh: '亮色', labelEn: 'Light', icon: Sun },
+  { key: 'dark', labelZh: '暗色', labelEn: 'Dark', icon: Moon },
+  { key: 'system', labelZh: '跟随系统', labelEn: 'System', icon: Monitor },
+];
 
 export default function Header({ locale, me }: HeaderProps) {
   const pathname = usePathname();
@@ -49,14 +55,8 @@ export default function Header({ locale, me }: HeaderProps) {
 
   const switchLocale = (newLocale: string) => {
     const newPath = pathname.replace(/^\/(zh|en)/, `/${newLocale}`);
-    window.location.href = newPath;
+    router.replace(newPath);
   };
-
-  const themeOptions: { key: string; label: string; icon: React.ReactNode }[] = [
-    { key: 'light', label: '亮色', icon: <Sun className="w-3.5 h-3.5" /> },
-    { key: 'dark', label: '暗色', icon: <Moon className="w-3.5 h-3.5" /> },
-    { key: 'system', label: '跟随系统', icon: <Monitor className="w-3.5 h-3.5" /> },
-  ];
 
   const handleLogout = async () => {
     try {
@@ -72,91 +72,11 @@ export default function Header({ locale, me }: HeaderProps) {
 
   const displayName = me?.name || me?.username || '';
   const initials = displayName.slice(0, 1).toUpperCase();
-
-  const userCardLabel = (
-    <div className="w-72 p-0 overflow-hidden rounded-lg border border-gray-100 shadow-lg">
-      <div className="h-20 bg-gradient-to-r from-blue-600 to-indigo-600 relative">
-        <div className="absolute -bottom-8 left-4">
-          <Badge
-            offset={[-2, 2]}
-            count={
-              me?.membership && me.membership.status === 'ACTIVE' ? (
-                <Tag
-                  color={MEMBERSHIP_COLORS[me.membership.level]}
-                  className="text-xs border-0 leading-none"
-                  style={{ fontSize: 10, padding: '0 4px' }}
-                >
-                  {MEMBERSHIP_LABELS[me.membership.level]}
-                </Tag>
-              ) : null
-            }
-          >
-            <Avatar
-              size={56}
-              src={me?.avatar}
-              style={{ backgroundColor: 'rgba(255,255,255,0.25)', border: '2px solid white', fontSize: 22 }}
-            >
-              {initials}
-            </Avatar>
-          </Badge>
-        </div>
-      </div>
-      <div className="pt-10 pb-3 px-4">
-        <div className="flex items-center justify-between">
-          <div>
-            <div className="font-semibold text-gray-900">{displayName}</div>
-            <div className="text-xs text-gray-400">@{me?.username}</div>
-          </div>
-            <Link href={`/${locale}/settings`} onClick={(e) => e.stopPropagation()}>
-              <Button size="small" icon={<SettingOutlined />}>
-                编辑
-              </Button>
-            </Link>
-        </div>
-        {me?.membership && me.membership.status === 'ACTIVE' && (
-          <div className="mt-2 flex items-center gap-2">
-            <Tag color={me.membership.status === 'ACTIVE' ? 'green' : 'default'} className="text-xs">
-              {me.membership.status === 'ACTIVE' ? '会员有效' : '已过期'}
-            </Tag>
-            <span className="text-xs text-gray-400">
-              到期：{new Date(me.membership.expiredAt).toLocaleDateString('zh-CN')}
-            </span>
-          </div>
-        )}
-      </div>
-    </div>
-  );
-
-  const userMenuItems: MenuProps['items'] = [
-    {
-      key: 'card',
-      label: userCardLabel,
-      disabled: true,
-    },
-    { type: 'divider' },
-    {
-      key: 'profile',
-      icon: <UserOutlined />,
-      label: <Link href={`/${locale}/profile`}>个人主页</Link>,
-    },
-    {
-      key: 'settings',
-      icon: <SettingOutlined />,
-      label: <Link href={`/${locale}/settings`}>账户设置</Link>,
-    },
-    {
-      key: 'admin',
-      icon: <DashboardOutlined />,
-      label: <Link href={`/${locale}/admin`}>管理后台</Link>,
-    },
-    { type: 'divider' },
-    {
-      key: 'logout',
-      icon: <LogoutOutlined />,
-      label: '退出登录',
-      onClick: handleLogout,
-    },
-  ];
+  const isZh = locale === 'zh';
+  const membershipLabel = isZh
+    ? MEMBERSHIP_LABELS_ZH[me?.membership?.level ?? ''] ?? ''
+    : MEMBERSHIP_LABELS_EN[me?.membership?.level ?? ''] ?? '';
+  const membershipVariant = MEMBERSHIP_BADGE_VARIANTS[me?.membership?.level ?? ''] ?? 'default';
 
   return (
     <header className="h-14 flex items-center justify-between px-6 border-b bg-card flex-shrink-0">
@@ -177,14 +97,14 @@ export default function Header({ locale, me }: HeaderProps) {
             <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
             <span className="relative inline-flex rounded-full h-2 w-2 bg-green-500"></span>
           </span>
-          <span>{locale === 'zh' ? '实时行情' : 'Live Market'}</span>
+          <span>{isZh ? '实时行情' : 'Live Market'}</span>
         </div>
 
         {/* Language switcher */}
         <div className="flex items-center gap-1 border rounded-md p-0.5">
           <Button
-            type="text"
-            size="small"
+            variant="ghost"
+            size="sm"
             onClick={() => switchLocale('zh')}
             className={`h-7 px-2 text-xs ${locale === 'zh' ? 'bg-primary/10 text-primary' : 'text-muted-foreground'}`}
           >
@@ -192,8 +112,8 @@ export default function Header({ locale, me }: HeaderProps) {
             中文
           </Button>
           <Button
-            type="text"
-            size="small"
+            variant="ghost"
+            size="sm"
             onClick={() => switchLocale('en')}
             className={`h-7 px-2 text-xs ${locale === 'en' ? 'bg-primary/10 text-primary' : 'text-muted-foreground'}`}
           >
@@ -204,30 +124,114 @@ export default function Header({ locale, me }: HeaderProps) {
 
         {/* Theme switcher */}
         <div className="flex items-center gap-1 border rounded-md p-0.5">
-          {themeOptions.map((opt) => (
-            <Tooltip key={opt.key} title={opt.label} placement="bottom">
+          {THEME_OPTIONS.map((opt) => {
+            const Icon = opt.icon;
+            const label = isZh ? opt.labelZh : opt.labelEn;
+            return (
               <Button
-                type="text"
-                size="small"
+                key={opt.key}
+                variant="ghost"
+                size="sm"
+                title={label}
                 onClick={() => setTheme(opt.key)}
                 className={`h-7 w-8 p-0 flex items-center justify-center ${theme === opt.key ? 'bg-primary/10 text-primary' : 'text-muted-foreground hover:text-foreground'}`}
               >
-                {opt.icon}
+                <Icon className="w-3.5 h-3.5" />
               </Button>
-            </Tooltip>
-          ))}
+            );
+          })}
         </div>
 
         {/* User dropdown */}
         {me ? (
-          <Dropdown menu={{ items: userMenuItems }} placement="bottomRight" trigger={['click']}>
-            <button className="flex items-center gap-2 hover:opacity-80 transition-opacity cursor-pointer">
-              <Avatar size={32} src={me.avatar} style={{ backgroundColor: '#1677ff' }}>
-                {initials}
-              </Avatar>
-              <span className="text-sm font-medium text-gray-700 hidden sm:block">{displayName}</span>
-            </button>
-          </Dropdown>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <button className="flex items-center gap-2 hover:opacity-80 transition-opacity cursor-pointer rounded-full">
+                <Avatar className="h-8 w-8">
+                  <AvatarImage src={me.avatar ?? undefined} />
+                  <AvatarFallback className="bg-primary text-primary-foreground text-sm">
+                    {initials}
+                  </AvatarFallback>
+                </Avatar>
+                <span className="text-sm font-medium text-foreground hidden sm:block">{displayName}</span>
+              </button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-72 p-0">
+              {/* User card */}
+              <DropdownMenuLabel className="p-0">
+                <div className="bg-gradient-to-r from-blue-600 to-indigo-600 rounded-t-md p-4 pb-8">
+                  <div className="flex items-end gap-3">
+                    <Avatar className="h-14 w-14 border-2 border-white">
+                      <AvatarImage src={me.avatar ?? undefined} />
+                      <AvatarFallback className="bg-white/25 text-white text-lg">
+                        {initials}
+                      </AvatarFallback>
+                    </Avatar>
+                    <div className="flex-1 min-w-0 pb-1">
+                      <div className="text-white font-semibold">{displayName}</div>
+                      <div className="text-white/70 text-xs">@{me.username}</div>
+                    </div>
+                    {me.membership && me.membership.status === 'ACTIVE' && (
+                      <Badge variant={membershipVariant} className="mb-1 bg-white/20 text-white border-0">
+                        {membershipLabel}
+                      </Badge>
+                    )}
+                  </div>
+                </div>
+              </DropdownMenuLabel>
+
+              <div className="px-4 py-3">
+                <div className="flex items-center justify-between mb-2">
+                  <div className="flex items-center gap-2">
+                    {me.membership && me.membership.status === 'ACTIVE' && (
+                      <Badge variant={me.membership.status === 'ACTIVE' ? 'default' : 'outline'} className="bg-green-500/10 text-green-600 border-green-200">
+                        {isZh ? '会员有效' : 'Active'}
+                      </Badge>
+                    )}
+                    {me.membership && (
+                      <span className="text-xs text-muted-foreground">
+                        {isZh ? '到期：' : 'Exp: '}{new Date(me.membership.expiredAt).toLocaleDateString(isZh ? 'zh-CN' : 'en-US')}
+                      </span>
+                    )}
+                  </div>
+                  <Button variant="ghost" size="sm" className="h-7 text-xs" asChild>
+                    <Link href={`/${locale}/settings`}>
+                      <Settings className="w-3 h-3 mr-1" />
+                      {isZh ? '编辑' : 'Edit'}
+                    </Link>
+                  </Button>
+                </div>
+              </div>
+
+              <DropdownMenuSeparator />
+
+              <DropdownMenuItem asChild>
+                <Link href={`/${locale}/profile`} className="flex items-center gap-2 cursor-pointer">
+                  <User className="w-4 h-4" />
+                  {isZh ? '个人主页' : 'Profile'}
+                </Link>
+              </DropdownMenuItem>
+              <DropdownMenuItem asChild>
+                <Link href={`/${locale}/settings`} className="flex items-center gap-2 cursor-pointer">
+                  <Settings className="w-4 h-4" />
+                  {isZh ? '账户设置' : 'Settings'}
+                </Link>
+              </DropdownMenuItem>
+              <DropdownMenuItem asChild>
+                <Link href={`/${locale}/admin`} className="flex items-center gap-2 cursor-pointer">
+                  <LayoutDashboard className="w-4 h-4" />
+                  {isZh ? '管理后台' : 'Admin'}
+                </Link>
+              </DropdownMenuItem>
+
+              <DropdownMenuSeparator />
+
+              <DropdownMenuItem onClick={handleLogout} className="text-destructive focus:text-destructive cursor-pointer">
+                <LogOut className="w-4 h-4 mr-2" />
+                {isZh ? '退出登录' : 'Sign Out'}
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
         ) : null}
       </div>
     </header>

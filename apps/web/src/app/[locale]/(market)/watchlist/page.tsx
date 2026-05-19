@@ -3,6 +3,7 @@
 import { useEffect, useState, useCallback } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
 import { apiFetch } from '@/lib/api';
+import { fmtCap, fmtAmount } from '@/lib/stock-utils';
 
 type StockItem = {
   code: string;
@@ -22,17 +23,6 @@ type WatchlistItem = {
   addedAt: string;
   stock: StockItem;
 };
-
-function fmtCap(v: number): string {
-  if (v >= 10000) return (v / 10000).toFixed(2) + '万亿';
-  if (v >= 1) return v.toFixed(0) + '亿';
-  return (v * 10000).toFixed(0) + '万';
-}
-
-function fmtAmount(v: number): string {
-  if (v >= 10000) return (v / 10000).toFixed(2) + '亿';
-  return v.toFixed(0) + '万';
-}
 
 export default function WatchlistPage() {
   const router = useRouter();

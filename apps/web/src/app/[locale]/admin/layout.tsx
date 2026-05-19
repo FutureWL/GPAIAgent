@@ -1,7 +1,6 @@
 'use client';
 
 import React, { useState } from 'react';
-import { Providers } from '@/components/providers';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import {
@@ -118,9 +117,9 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
           </Button>
         </header>
 
-        {/* Content */}
+        {/* Content — Providers moved to root layout to avoid duplicate Toaster */}
         <main className="flex-1 overflow-y-auto p-6">
-          <Providers>{children}</Providers>
+          {children}
         </main>
       </div>
     </div>
