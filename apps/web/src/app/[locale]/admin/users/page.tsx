@@ -51,7 +51,7 @@ export default function UsersPage() {
     setLoading(true);
     try {
       const res = await fetch(
-        `http://localhost:3001/admin/users?page=${page}&pageSize=${pageSize}`,
+        `${process.env.NEXT_PUBLIC_API_URL}/admin/users?page=${page}&pageSize=${pageSize}`,
         { credentials: 'include', cache: 'no-store' }
       );
       if (!res.ok) throw new Error('Failed to fetch');
@@ -72,7 +72,7 @@ export default function UsersPage() {
   const handleRoleChange = async (userId: string, newRole: string) => {
     setChangingId(userId);
     try {
-      const res = await fetch(`http://localhost:3001/admin/users/${userId}/role`, {
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/admin/users/${userId}/role`, {
         method: 'PATCH',
         credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
@@ -94,7 +94,7 @@ export default function UsersPage() {
   const handleToggleDisable = async (userId: string, currentDisabled: boolean) => {
     setChangingId(userId);
     try {
-      const res = await fetch(`http://localhost:3001/admin/users/${userId}/disable`, {
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/admin/users/${userId}/disable`, {
         method: 'PATCH',
         credentials: 'include',
         headers: { 'Content-Type': 'application/json' },

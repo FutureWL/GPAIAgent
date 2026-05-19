@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 
-// 腾讯/东方财富 K 线代理
+// 东方财富 K 线服务端代理（绕过 next.config 代理限制）
 export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ code: string }> }
@@ -9,7 +9,7 @@ export async function GET(
   const { searchParams } = new URL(request.url);
   const period = searchParams.get('period') ?? 'day';
 
-  // 转换 sh000001 -> 1.000001 (上证) 或 sz000001 -> 0.000001 (深证)
+  // 东方财富 secid: 1=上证, 0=深证
   const numCode = code.replace(/^(sh|sz)/, '');
   const market = code.startsWith('sh') ? 1 : 0;
   const secid = `${market}.${numCode}`;

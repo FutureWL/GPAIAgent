@@ -49,11 +49,11 @@ export default function MembershipsPage() {
       const params = new URLSearchParams({ page: String(page), pageSize: String(pageSize) });
       if (statusFilter !== 'all') params.set('status', statusFilter);
       const [mRes, sRes] = await Promise.all([
-        fetch(`http://localhost:3001/admin/memberships?${params}`, {
+        fetch(`http://127.0.0.1:3002/admin/memberships?${params}`, {
           credentials: 'include',
           cache: 'no-store',
         }),
-        fetch('http://localhost:3001/admin/memberships/stats', {
+        fetch('http://127.0.0.1:3002/admin/memberships/stats', {
           credentials: 'include',
           cache: 'no-store',
         }),

@@ -41,7 +41,7 @@ export default function AiGenerationsPage() {
     setLoading(true);
     try {
       const res = await fetch(
-        `http://localhost:3001/admin/ai-generations?page=${page}&pageSize=${pageSize}`,
+        `http://127.0.0.1:3002/admin/ai-generations?page=${page}&pageSize=${pageSize}`,
         { credentials: 'include', cache: 'no-store' }
       );
       if (!res.ok) throw new Error('Failed');

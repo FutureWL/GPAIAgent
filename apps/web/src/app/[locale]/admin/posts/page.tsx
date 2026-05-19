@@ -61,7 +61,7 @@ export default function PostsPage() {
       const params = new URLSearchParams({ page: String(page), pageSize: String(pageSize) });
       if (statusFilter !== 'all') params.set('status', statusFilter);
       const res = await fetch(
-        `http://localhost:3001/admin/posts?${params}`,
+        `${process.env.NEXT_PUBLIC_API_URL}/admin/posts?${params}`,
         { credentials: 'include', cache: 'no-store' }
       );
       if (!res.ok) throw new Error('Failed to fetch');
@@ -82,7 +82,7 @@ export default function PostsPage() {
   const handleReview = async (postId: string, action: 'approve' | 'reject' | 'remove') => {
     setActingId(postId);
     try {
-      const res = await fetch(`http://localhost:3001/admin/posts/${postId}/review`, {
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/admin/posts/${postId}/review`, {
         method: 'PATCH',
         credentials: 'include',
         headers: { 'Content-Type': 'application/json' },

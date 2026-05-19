@@ -40,8 +40,8 @@ export default function StocksPage() {
     setLoading(true);
     try {
       const [stocksRes, syncRes] = await Promise.all([
-        fetch('http://localhost:3001/admin/stocks', { credentials: 'include', cache: 'no-store' }),
-        fetch('http://localhost:3001/admin/sync/status', { credentials: 'include', cache: 'no-store' }),
+        fetch(`${process.env.NEXT_PUBLIC_API_URL}/admin/stocks`, { credentials: 'include', cache: 'no-store' }),
+        fetch(`${process.env.NEXT_PUBLIC_API_URL}/admin/sync/status`, { credentials: 'include', cache: 'no-store' }),
       ]);
       if (stocksRes.ok) {
         const data = await stocksRes.json();
@@ -65,7 +65,7 @@ export default function StocksPage() {
   const handleTriggerSync = async () => {
     setTriggering(true);
     try {
-      const res = await fetch('http://localhost:3001/admin/sync/trigger', {
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/admin/sync/trigger`, {
         method: 'POST',
         credentials: 'include',
         cache: 'no-store',

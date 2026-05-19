@@ -1,377 +1,452 @@
 'use client';
 
 import { useEffect, useState, useRef } from 'react';
-import { useParams, useRouter } from 'next/navigation';
+import { useParams, useRouter, usePathname } from 'next/navigation';
 import ReactECharts from 'echarts-for-react';
 import { fmtCap, fmtAmount } from '@/lib/stock-utils';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Input } from '@/components/ui/input';
 import { cn } from '@/lib/utils';
+
+type PeriodType = 'minute' | '5day' | 'day' | 'week' | 'month' | '1min' | '5min' | '15min' | '30min' | '60min';
+
+const PERIODS: { key: PeriodType; label: string }[] = [
+  { key: 'minute',  label: '分时' },
+  { key: '5day',    label: '5日' },
+  { key: 'day',     label: '日K' },
+  { key: 'week',    label: '周K' },
+  { key: 'month',   label: '月K' },
+  { key: '1min',    label: '1分钟' },
+  { key: '5min',    label: '5分钟' },
+  { key: '15min',   label: '15分钟' },
+  { key: '30min',   label: '30分钟' },
+  { key: '60min',   label: '60分钟' },
+];
+
+const MAIN_PERIODS = PERIODS.slice(0, 5);
+const SUB_PERIODS  = PERIODS.slice(5);
 
 interface Quote {
   code: string;
   name: string;
-  price: string;
-  change: string;
-  changePercent: string;
-  open: string;
-  preClose: string;
-  high: string;
-  low: string;
-  volume: string;
-  amount: string;
-  netInflow: string;
-  totalCap: string;
-  circulateCap: string;
+  price: number;
+  change: number;
+  changePercent: number;
+  open: number;
+  preClose: number;
+  high: number;
+  low: number;
+  volume: number;
+  amount: number;
+  turnover: number;
+  totalCap: number;
+  circulateCap: number;
+  netInflow: number;
 }
 
 interface MinutePoint { time: string; price: number; volume: number; }
 interface DailyBar { date: string; open: number; close: number; high: number; low: number; volume: number; }
 
-type PeriodType = 'minute' | '5day' | 'day' | 'week' | 'month' | 'season' | 'year' | '1min' | '5min' | '15min' | '30min' | '60min';
-
-const PERIODS: { key: PeriodType; label: string }[] = [
-  { key: 'minute', label: '分时' },
-  { key: '5day', label: '5日' },
-  { key: 'day', label: '日K' },
-  { key: 'week', label: '周K' },
-  { key: 'month', label: '月K' },
-  { key: 'season', label: '季K' },
-  { key: 'year', label: '年K' },
-  { key: '1min', label: '1分钟' },
-  { key: '5min', label: '5分钟' },
-  { key: '15min', label: '15分钟' },
-  { key: '30min', label: '30分钟' },
-  { key: '60min', label: '60分钟' },
-];
-
-const MINUTE_PERIODS: PeriodType[] = ['1min', '5min', '15min', '30min', '60min'];
-
-const NAME_MAP: Record<string, string> = {
-  '000001': '上证指数', '399001': '深证成指', '399006': '创业板指',
-  '600519': '贵州茅台', '000858': '五粮液', '600036': '招商银行',
-  '601318': '中国平安', '000333': '美的集团', '002594': '比亚迪',
-  '600887': '伊利股份', '600030': '中信证券',
-  '601888': '中国中免', '300750': '宁德时代', '688981': '中芯国际',
-};
-
-async function fetchStockQuote(code: string): Promise<Quote | null> {
+function parseTencentLine(raw: string): Quote | null {
   try {
-    const resp = await fetch(`/api/stocks/${code}/quote`, { signal: AbortSignal.timeout(10000) });
-    if (!resp.ok) return null;
-    const qt = await resp.json();
-    if (!qt || !qt.code) return null;
+    const eqIdx = raw.indexOf('=');
+    if (eqIdx < 0) return null;
+    const parts = raw.substring(eqIdx + 2).split('~');
+    if (parts.length < 45) return null;
+    const code = parts[2] || '';
+    const name = parts[1] || code;
+    const price = parseFloat(parts[3]) || 0;
+    const change = parseFloat(parts[31]) || 0;
+    const changePercent = parseFloat(parts[32]) || 0;
+    const open = parseFloat(parts[5]) || 0;
+    const preClose = parseFloat(parts[4]) || 0;
+    const volume = parseInt(parts[6]) || 0;
+    const amount = parseFloat(parts[37]) || 0;
+    const turnover = parseFloat(parts[38]) || 0;
+    const high = parseFloat(parts[33]) || 0;
+    const low = parseFloat(parts[34]) || 0;
+    const totalCap = parseFloat(parts[44]) || 0;
+    const circulateCap = parseFloat(parts[45]) || 0;
+    const netInflow = parseFloat(parts[74]) || 0;
     return {
-      code: qt.code,
-      name: qt.name || NAME_MAP[code] || code,
-      price: qt.price.toFixed(2),
-      change: qt.change.toFixed(2),
-      changePercent: qt.changePercent.toFixed(2),
-      open: qt.open.toFixed(2),
-      preClose: qt.preClose.toFixed(2),
-      high: qt.high.toFixed(2),
-      low: qt.low.toFixed(2),
-      volume: qt.volume >= 10000 ? (qt.volume / 10000).toFixed(2) + '万手' : qt.volume + '手',
-      amount: fmtAmount(qt.amount ?? 0),
-      netInflow: fmtAmount(Math.abs(qt.netInflow ?? 0)),
-      totalCap: fmtCap(qt.totalCap ?? 0),
-      circulateCap: fmtCap(qt.circulateCap ?? 0),
+      code, name: name.replace(/["\s]/g, ''),
+      price, change, changePercent,
+      open, preClose, high, low, volume, amount, turnover,
+      totalCap, circulateCap, netInflow,
     };
   } catch { return null; }
 }
 
+async function fetchQuote(code: string): Promise<Quote | null> {
+  const prefix = code.startsWith('sh') ? 'sh' : 'sz';
+  const c = code.replace(/^(sh|sz)/, '');
+  const url = `https://qt.gtimg.cn/q=${prefix}${c}`;
+  const resp = await fetch(url, {
+    headers: { Referer: 'https://finance.qq.com', 'User-Agent': 'Mozilla/5.0' },
+    signal: AbortSignal.timeout(10000),
+  });
+  if (!resp.ok) return null;
+  const buffer = await resp.arrayBuffer();
+  const text = new TextDecoder('gbk').decode(Buffer.from(buffer));
+  return parseTencentLine(text.trim());
+}
+
 async function fetchMinuteData(code: string): Promise<{ points: MinutePoint[]; preClose: number }> {
   try {
-    const resp = await fetch(`/api/stocks/${code}/kline?period=minute`, { signal: AbortSignal.timeout(10000) });
+    const prefix = code.startsWith('sh') ? 'sh' : 'sz';
+    const c = code.replace(/^(sh|sz)/, '');
+    const url = `https://web.ifzq.gtimg.cn/appstock/app/minute/query?_var=minutedata&param=${prefix}${c},${c}`;
+    const resp = await fetch(url, { signal: AbortSignal.timeout(10000) });
     if (!resp.ok) return { points: [], preClose: 0 };
-    const data = await resp.json();
-    if (!Array.isArray(data) || data.length === 0) return { points: [], preClose: 0 };
-    const points: MinutePoint[] = data.map((b: any) => ({ time: b.date, price: b.close, volume: b.volume }));
-    return { points, preClose: points[0]?.price || 0 };
+    const text = await resp.text();
+    const json = text.replace(/^[^=]+=/, '');
+    const data = JSON.parse(json);
+    const qfq = data.data?.[c]?.data;
+    if (!qfq) return { points: [], preClose: 0 };
+    const preClose = data.data?.[c]?.pc || 0;
+    const lines = Array.isArray(qfq) ? qfq : qfq.data || [];
+    const points: MinutePoint[] = lines.map((p: string[]) => ({ time: p[0], price: parseFloat(p[1]) || 0, volume: parseFloat(p[2]) || 0 }));
+    return { points, preClose };
   } catch { return { points: [], preClose: 0 }; }
 }
 
 async function fetch5DayData(code: string): Promise<{ points: MinutePoint[]; preClose: number }> {
   try {
-    const resp = await fetch(`/api/stocks/${code}/kline?period=5day`, { signal: AbortSignal.timeout(10000) });
+    const prefix = code.startsWith('sh') ? 'sh' : 'sz';
+    const c = code.replace(/^(sh|sz)/, '');
+    const url = `https://web.ifzq.gtimg.cn/appstock/app/fqkline/get?_var=kline_dayqfq&param=${prefix}${c},day,,,,,100,qfq`;
+    const resp = await fetch(url, { signal: AbortSignal.timeout(10000) });
     if (!resp.ok) return { points: [], preClose: 0 };
-    const data = await resp.json();
-    if (!Array.isArray(data) || data.length === 0) return { points: [], preClose: 0 };
-    const points: MinutePoint[] = data.map((b: any) => ({ time: b.date, price: b.close, volume: b.volume }));
-    return { points, preClose: points[0]?.price || 0 };
+    const text = await resp.text();
+    const json = text.replace(/^[^=]+=/, '');
+    const data = JSON.parse(json);
+    const dayData = data.data?.[c]?.data || [];
+    if (!dayData.length) return { points: [], preClose: 0 };
+    const preClose = parseFloat(dayData[0][1]) || 0;
+    const points: MinutePoint[] = dayData.map((d: string[]) => ({ time: d[0], price: parseFloat(d[2]) || 0, volume: parseFloat(d[5]) || 0 }));
+    return { points, preClose };
   } catch { return { points: [], preClose: 0 }; }
 }
 
-async function fetchMinuteKline(code: string, period: string): Promise<DailyBar[]> {
+async function fetchKlineData(code: string, period: string, locale = 'zh'): Promise<DailyBar[]> {
   try {
-    const resp = await fetch(`/api/stocks/${code}/daily?period=${period}&days=300`, { signal: AbortSignal.timeout(15000) });
+    const resp = await fetch(`/${locale}/kline-fetch/${code}?period=${period}`, { signal: AbortSignal.timeout(15000) });
     if (!resp.ok) return [];
     const data = await resp.json();
-    return Array.isArray(data) ? data : [];
+    const klines: any[] = Array.isArray(data) ? data : [];
+    return klines.map((d: any) => ({
+      date: d.day, open: +d.open, close: +d.close, high: +d.high, low: +d.low, volume: +d.volume,
+    }));
   } catch { return []; }
 }
 
-function getMinuteChartOptions(points: MinutePoint[], preClose: number) {
-  if (points.length === 0) return {};
-  const times = points.map(p => p.time);
+function minuteChartOptions(points: MinutePoint[], preClose: number, up: boolean) {
+  if (!points.length) return {};
+  const times  = points.map(p => p.time);
   const prices = points.map(p => p.price);
   const lastPrice = prices[prices.length - 1] ?? preClose;
-  const up = lastPrice >= preClose;
-  const priceColor = up ? 'hsl(var(--stock-up))' : 'hsl(var(--stock-down))';
-  const areaTopColor = up ? 'rgba(239,68,68,0.12)' : 'rgba(34,197,94,0.12)';
-  const volumes = points.map(p => ({
-    value: p.volume,
-    itemStyle: { color: p.price >= preClose ? 'rgba(239,68,68,0.45)' : 'rgba(34,197,94,0.45)' }
-  }));
-  const preCloseLine = Array(prices.length).fill(preClose);
+  const priceColor = up ? '#ef4444' : '#22c55e';
+  const areaTop = up ? 'rgba(239,68,68,0.10)' : 'rgba(34,197,94,0.10)';
+  const volumes = points.map(p => ({ value: p.volume, itemStyle: { color: p.price >= preClose ? 'rgba(239,68,68,0.40)' : 'rgba(34,197,94,0.40)' } }));
   return {
-    tooltip: { trigger: 'axis', formatter: (params: any[]) => `${params[0].axisValue}<br/><b style="color:${priceColor}">${params[0].value.toFixed(2)}</b>` },
-    grid: [{ left: 50, right: 50, top: 20, height: '60%' }, { left: 50, right: 50, top: '76%', height: '14%' }],
+    tooltip: { trigger: 'axis', formatter: (params: any[]) => `${params[0].axisValue}<br/><b style="color:${priceColor}">${params[0].value?.toFixed(2) ?? '—'}</b>` },
+    grid: [{ left: 52, right: 12, top: 16, height: '58%' }, { left: 52, right: 12, top: '76%', height: '14%' }],
     xAxis: [
-      { type: 'category', data: times, boundaryGap: false, axisLine: { lineStyle: { color: 'hsl(var(--border))' } }, axisLabel: { color: 'hsl(var(--muted-foreground))', fontSize: 10 }, splitLine: { show: false } },
-      { type: 'category', data: times, gridIndex: 1, boundaryGap: false, axisLine: { lineStyle: { color: 'hsl(var(--border))' } }, axisLabel: { show: false } }
+      { type: 'category', data: times, boundaryGap: false, axisLine: { lineStyle: { color: '#e5e7eb' } }, axisLabel: { color: '#6b7280', fontSize: 10 }, splitLine: { show: false } },
+      { type: 'category', data: times, boundaryGap: false, gridIndex: 1, axisLine: { lineStyle: { color: '#e5e7eb' } }, axisLabel: { show: false } }
     ],
     yAxis: [
-      { scale: true, position: 'right', axisLine: { lineStyle: { color: 'hsl(var(--border))' } }, axisLabel: { color: 'hsl(var(--muted-foreground))', fontSize: 10 }, splitLine: { lineStyle: { color: 'hsl(var(--border))' }, splitNumber: 4 } },
-      { scale: true, gridIndex: 1, position: 'right', axisLine: { lineStyle: { color: 'hsl(var(--border))' } }, axisLabel: { show: false }, splitLine: { show: false } }
+      { scale: true, position: 'right', axisLine: { lineStyle: { color: '#e5e7eb' } }, axisLabel: { color: '#6b7280', fontSize: 10 }, splitLine: { lineStyle: { color: '#f3f4f6' } } },
+      { scale: true, gridIndex: 1, position: 'right', axisLine: { lineStyle: { color: '#e5e7eb' } }, axisLabel: { show: false }, splitLine: { show: false } }
     ],
     series: [
-      { name: '昨收', type: 'line', data: preCloseLine, smooth: false, symbol: 'none', lineStyle: { color: 'hsl(var(--muted-foreground))', width: 1, type: 'dashed' }, xAxisIndex: 0, yAxisIndex: 0 },
-      { name: '价格', type: 'line', data: prices, xAxisIndex: 0, yAxisIndex: 0, smooth: true, symbol: 'none', lineStyle: { color: priceColor, width: 1.5 }, areaStyle: { color: { type: 'linear', x: 0, y: 0, x2: 0, y2: 1, colorStops: [{ offset: 0, color: areaTopColor }, { offset: 1, color: 'rgba(0,0,0,0)' }] } } },
-      { name: '成交量', type: 'bar', data: volumes, xAxisIndex: 1, yAxisIndex: 1, barWidth: '80%' },
+      { name: '昨收', type: 'line', data: Array(prices.length).fill(preClose), smooth: false, symbol: 'none', lineStyle: { color: '#9ca3af', width: 1, type: 'dashed' }, xAxisIndex: 0, yAxisIndex: 0 },
+      { name: '价格', type: 'line', data: prices, smooth: true, symbol: 'none', lineStyle: { color: priceColor, width: 1.5 }, areaStyle: { color: { type: 'linear', x: 0, y: 0, x2: 0, y2: 1, colorStops: [{ offset: 0, color: areaTop }, { offset: 1, color: 'rgba(0,0,0,0)' }] } }, xAxisIndex: 0, yAxisIndex: 0 },
+      { name: '成交量', type: 'bar', data: volumes, xAxisIndex: 1, yAxisIndex: 1, barWidth: '80%' }
     ],
   };
 }
 
-function getCandlestickOptions(data: DailyBar[]) {
-  if (data.length === 0) return {};
-  const dates = data.map(d => d.date);
-  const ohlc = data.map(d => [d.open, d.close, d.low, d.high]);
-  const volumes = data.map(d => ({ value: d.volume, itemStyle: { color: d.close >= d.open ? 'hsl(var(--stock-up))' : 'hsl(var(--stock-down))' } }));
+function candlestickOptions(data: DailyBar[]) {
+  if (!data.length) return {};
+  const dates  = data.map(d => d.date);
+  const ohlc   = data.map(d => [d.open, d.close, d.low, d.high]);
+  const volumes = data.map(d => ({ value: d.volume, itemStyle: { color: d.close >= d.open ? '#ef4444' : '#22c55e' } }));
   return {
     tooltip: {
       trigger: 'axis', axisPointer: { type: 'cross' },
       formatter: (params: any[]) => {
-        const idx = params[0].dataIndex;
+        const idx = params[0]?.dataIndex;
+        if (idx == null) return '';
         const d = data[idx];
-        if (!d) return '';
         const up = d.close >= d.open;
-        const color = up ? 'hsl(var(--stock-up))' : 'hsl(var(--stock-down))';
-        const volStr = d.volume >= 10000 ? (d.volume / 10000).toFixed(2) + '万手' : d.volume + '手';
-        return `<b style="color:${color}">${d.date}</b><br/>开：${d.open.toFixed(2)}<br/>收：${d.close.toFixed(2)}<br/>高：${d.high.toFixed(2)}<br/>低：${d.low.toFixed(2)}<br/>量：${volStr}`;
+        const c = up ? '#ef4444' : '#22c55e';
+        const vol = d.volume >= 100000000 ? (d.volume / 100000000).toFixed(2) + '亿' : d.volume >= 10000 ? (d.volume / 10000).toFixed(2) + '万' : d.volume;
+        return `<b style="color:${c}">${d.date}</b><br/>开：${d.open.toFixed(2)}<br/>收：${d.close.toFixed(2)}<br/>高：${d.high.toFixed(2)}<br/>低：${d.low.toFixed(2)}<br/>量：${vol}`;
       }
     },
-    grid: [{ left: 60, right: 20, top: 20, height: '58%' }, { left: 60, right: 20, top: '76%', height: '14%' }],
+    grid: [{ left: 60, right: 12, top: 16, height: '58%' }, { left: 60, right: 12, top: '76%', height: '14%' }],
     xAxis: [
-      { type: 'category', data: dates, gridIndex: 0, boundaryGap: true, axisLine: { lineStyle: { color: 'hsl(var(--border))' } }, axisLabel: { color: 'hsl(var(--muted-foreground))', fontSize: 10, formatter: (v: string) => v.length > 7 ? v.slice(5) : v }, splitLine: { show: true, lineStyle: { color: 'hsl(var(--border))' } } },
-      { type: 'category', data: dates, gridIndex: 1, boundaryGap: true, axisLine: { lineStyle: { color: 'hsl(var(--border))' } }, axisLabel: { show: false } }
+      { type: 'category', data: dates, gridIndex: 0, boundaryGap: true, axisLine: { lineStyle: { color: '#e5e7eb' } }, axisLabel: { color: '#6b7280', fontSize: 10, formatter: (v: string) => v.length > 7 ? v.slice(5) : v }, splitLine: { show: true, lineStyle: { color: '#f3f4f6' } } },
+      { type: 'category', data: dates, gridIndex: 1, boundaryGap: true, axisLine: { lineStyle: { color: '#e5e7eb' } }, axisLabel: { show: false } }
     ],
     yAxis: [
-      { scale: true, gridIndex: 0, axisLine: { lineStyle: { color: 'hsl(var(--border))' } }, axisLabel: { color: 'hsl(var(--muted-foreground))', fontSize: 10 }, splitLine: { lineStyle: { color: 'hsl(var(--border))' } } },
-      { scale: true, gridIndex: 1, axisLine: { lineStyle: { color: 'hsl(var(--border))' } }, axisLabel: { color: 'hsl(var(--muted-foreground))', fontSize: 10, formatter: (v: number) => (v / 10000).toFixed(0) + '万' }, splitLine: { show: false } }
+      { scale: true, gridIndex: 0, axisLine: { lineStyle: { color: '#e5e7eb' } }, axisLabel: { color: '#6b7280', fontSize: 10 }, splitLine: { lineStyle: { color: '#f3f4f6' } } },
+      { scale: true, gridIndex: 1, axisLine: { lineStyle: { color: '#e5e7eb' } }, axisLabel: { color: '#6b7280', fontSize: 10, formatter: (v: number) => v >= 100000000 ? (v / 100000000).toFixed(0) + '亿' : v >= 10000 ? (v / 10000).toFixed(0) + '万' : v }, splitLine: { show: false } }
     ],
     series: [
-      { name: 'K线', type: 'candlestick', data: ohlc, xAxisIndex: 0, yAxisIndex: 0, itemStyle: { color: 'hsl(var(--stock-up))', color0: 'hsl(var(--stock-down))', borderColor: 'hsl(var(--stock-up))', borderColor0: 'hsl(var(--stock-down))' } },
+      { name: 'K线', type: 'candlestick', data: ohlc, xAxisIndex: 0, yAxisIndex: 0, itemStyle: { color: '#ef4444', color0: '#22c55e', borderColor: '#ef4444', borderColor0: '#22c55e' } },
       { name: '成交量', type: 'bar', data: volumes, xAxisIndex: 1, yAxisIndex: 1, barWidth: '60%' }
     ],
-    backgroundColor: 'transparent',
   };
 }
 
 export default function StockDetailPage() {
   const params = useParams();
   const router = useRouter();
-  const code = String(params.code || '').replace(/^(sh|sz)/, '');
+  const pathname = usePathname();
+  const locale = pathname.split('/')[1] || 'zh';
+
+  // 指数代码: 000001=上证, 399001=深证, 399006=创业板
+  const rawCode = String(params.code || '');
+  const code = rawCode.startsWith('sh') || rawCode.startsWith('sz')
+    ? rawCode
+    : rawCode === '000001' || rawCode === '399001' || rawCode === '399006'
+      ? (rawCode === '000001' ? 'sh000001' : rawCode === '399001' ? 'sz399001' : 'sz399006')
+      : `sz${rawCode}`;
+
   const [quote, setQuote] = useState<Quote | null>(null);
   const [loading, setLoading] = useState(true);
-  const [notFound, setNotFound] = useState(false);
-  const [activePeriod, setActivePeriod] = useState<PeriodType>('minute');
+  const [activePeriod, setActivePeriod] = useState<PeriodType>('day');
   const [minutePoints, setMinutePoints] = useState<MinutePoint[]>([]);
   const [preClose, setPreClose] = useState(0);
   const [minuteLoading, setMinuteLoading] = useState(false);
   const [klineData, setKlineData] = useState<DailyBar[]>([]);
   const [klineLoading, setKlineLoading] = useState(false);
-  const [showMore, setShowMore] = useState(false);
-  const moreRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (!code) return;
     setLoading(true);
     setQuote(null);
-    setMinutePoints([]);
-    setKlineData([]);
-    setActivePeriod('minute');
-    fetchStockQuote(code).then(q => {
-      if (!q) { setNotFound(true); setLoading(false); return; }
+    fetchQuote(code).then(q => {
       setQuote(q);
-      setPreClose(parseFloat(q.preClose));
-      setNotFound(false);
       setLoading(false);
-    }).catch(() => { setNotFound(true); setLoading(false); });
+    }).catch(() => setLoading(false));
   }, [code]);
 
   useEffect(() => {
     if (!code || !quote) return;
     if (activePeriod === 'minute') {
       setMinuteLoading(true);
-      fetchMinuteData(code).then(({ points, preClose: pc }) => { setMinutePoints(points); if (pc) setPreClose(pc); setMinuteLoading(false); }).catch(() => setMinuteLoading(false));
+      fetchMinuteData(code).then(({ points, preClose: pc }) => {
+        setMinutePoints(points);
+        if (pc) setPreClose(pc);
+        setMinuteLoading(false);
+      }).catch(() => setMinuteLoading(false));
     } else if (activePeriod === '5day') {
       setMinuteLoading(true);
-      fetch5DayData(code).then(({ points, preClose: pc }) => { setMinutePoints(points); if (pc) setPreClose(pc); setMinuteLoading(false); }).catch(() => setMinuteLoading(false));
+      fetch5DayData(code).then(({ points, preClose: pc }) => {
+        setMinutePoints(points);
+        if (pc) setPreClose(pc);
+        setMinuteLoading(false);
+      }).catch(() => setMinuteLoading(false));
+    } else {
+      setKlineLoading(true);
+      fetchKlineData(code, activePeriod, locale).then(data => {
+        setKlineData(data);
+        setKlineLoading(false);
+      }).catch(() => setKlineLoading(false));
     }
   }, [activePeriod, code, quote]);
 
-  useEffect(() => {
-    if (!code || !quote) return;
-    if (activePeriod === 'minute' || activePeriod === '5day') return;
-    setKlineLoading(true);
-    fetchMinuteKline(code, activePeriod).then(data => { setKlineData(data); setKlineLoading(false); }).catch(() => setKlineLoading(false));
-  }, [activePeriod, code, quote]);
-
-  useEffect(() => {
-    const handleClick = (e: MouseEvent) => {
-      if (moreRef.current && !moreRef.current.contains(e.target as Node)) setShowMore(false);
-    };
-    document.addEventListener('mousedown', handleClick);
-    return () => document.removeEventListener('mousedown', handleClick);
-  }, []);
-
-  const handlePeriodChange = (period: PeriodType) => { setActivePeriod(period); setShowMore(false); };
+  const up = quote ? quote.change >= 0 : true;
 
   const renderChart = () => {
-    if (minuteLoading || klineLoading) return <div className="h-[360px] sm:h-[480px] flex items-center justify-center text-muted-foreground">加载中...</div>;
-    if (activePeriod === 'minute' || activePeriod === '5day') {
-      if (minutePoints.length === 0) return <div className="h-[360px] sm:h-[480px] flex items-center justify-center text-muted-foreground">暂无分时数据</div>;
-      return <ReactECharts option={getMinuteChartOptions(minutePoints, preClose)} style={{ height: '360px' }} />;
+    if ((minuteLoading || klineLoading)) {
+      return <div className="h-[340px] flex items-center justify-center text-muted-foreground text-sm">加载中...</div>;
     }
-    if (klineData.length === 0) return <div className="h-[360px] sm:h-[480px] flex items-center justify-center text-muted-foreground">暂无K线数据</div>;
-    return <ReactECharts option={getCandlestickOptions(klineData)} style={{ height: '360px' }} />;
+    if (activePeriod === 'minute' || activePeriod === '5day') {
+      if (!minutePoints.length) return <div className="h-[340px] flex items-center justify-center text-muted-foreground text-sm">暂无分时数据</div>;
+      return <ReactECharts option={minuteChartOptions(minutePoints, preClose || quote?.preClose || 0, up)} style={{ height: 340 }} />;
+    }
+    if (!klineData.length) return <div className="h-[340px] flex items-center justify-center text-muted-foreground text-sm">暂无K线数据</div>;
+    return <ReactECharts option={candlestickOptions(klineData)} style={{ height: 340 }} />;
   };
 
-  const up = quote ? parseFloat(quote.change) >= 0 : true;
-  const priceColor = up ? 'text-stock-up' : 'text-stock-down';
-  const infoRows = quote ? [
-    ['今开', quote.open], ['昨收', quote.preClose],
-    ['最高', quote.high], ['最低', quote.low],
-    ['成交量', quote.volume], ['成交额', quote.amount],
-    ['净流入', (up ? '+' : '-') + quote.netInflow],
-    ['流通市值', quote.circulateCap], ['总市值', quote.totalCap],
-  ] : [];
+  if (loading) {
+    return (
+      <div className="max-w-5xl mx-auto px-4 sm:px-6 py-6">
+        <div className="animate-pulse space-y-4">
+          <div className="h-8 bg-muted rounded w-1/3" />
+          <div className="h-32 bg-muted rounded" />
+          <div className="h-[340px] bg-muted rounded" />
+        </div>
+      </div>
+    );
+  }
 
-  return (
-    <div className="max-w-4xl mx-auto px-4 sm:px-6 py-6 space-y-4">
-
-      {/* Back button */}
-      <Button variant="ghost" size="sm" onClick={() => router.back()} className="gap-1.5 text-muted-foreground hover:text-foreground -ml-2">
-        <span>←</span> {up ? '返回' : '返回'}
-      </Button>
-
-      {loading && <div className="text-center py-20 text-muted-foreground">加载中...</div>}
-
-      {notFound && !loading && (
+  if (!quote) {
+    return (
+      <div className="max-w-5xl mx-auto px-4 sm:px-6 py-6">
+        <Button variant="ghost" size="sm" onClick={() => router.back()} className="mb-4 gap-1.5 text-muted-foreground">← 返回</Button>
         <Card className="py-16 text-center">
           <CardContent className="text-muted-foreground">
             <p className="mb-4">未找到股票 {code}</p>
             <Button variant="outline" size="sm" onClick={() => router.back()}>返回</Button>
           </CardContent>
         </Card>
-      )}
+      </div>
+    );
+  }
 
-      {quote && !loading && (
-        <>
-          {/* Quote card */}
-          <Card>
-            <CardContent className="p-5">
-              <div className="flex items-start justify-between gap-4">
-                <div>
-                  <h1 className="text-2xl font-bold tracking-tight">{quote.name}</h1>
-                  <p className="text-sm text-muted-foreground mt-1 font-mono">{quote.code}</p>
-                </div>
-                <div className="text-right">
-                  <div className={`text-3xl font-bold font-mono tabular-nums ${priceColor}`}>{quote.price}</div>
-                  <div className={`text-sm font-mono tabular-nums mt-1 ${priceColor}`}>
-                    {up ? '+' : ''}{quote.change} &nbsp; ({up ? '+' : ''}{quote.changePercent}%)
-                  </div>
-                </div>
+  const priceColor = up ? 'text-stock-up' : 'text-stock-down';
+  const priceBg    = up ? 'bg-stock-up'    : 'bg-stock-down';
+  const volColor   = up ? '#ef4444' : '#22c55e';
+
+  const volStr = (v: number) =>
+    v >= 100000000 ? (v / 100000000).toFixed(2) + '亿' :
+    v >= 10000     ? (v / 10000).toFixed(2) + '万' : v;
+
+  return (
+    <div className="max-w-5xl mx-auto px-4 sm:px-6 py-4 space-y-3">
+
+      {/* ── 顶部导航栏 ── */}
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-3">
+          <Button variant="ghost" size="sm" onClick={() => router.back()} className="gap-1 text-muted-foreground hover:text-foreground px-2">
+            <span className="text-base">←</span>
+          </Button>
+          <div>
+            <h1 className="text-xl font-bold tracking-tight leading-none">{quote.name}</h1>
+            <p className="text-xs text-muted-foreground font-mono mt-0.5">{code.toUpperCase()}</p>
+          </div>
+        </div>
+        <Button
+          size="sm"
+          className="gap-1.5 text-xs"
+          onClick={() => fetch('/api/stocks/user', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ stockCode: code }) }).then(() => alert('已添加自选')).catch(() => alert('添加失败'))}
+        >
+          + 自选
+        </Button>
+      </div>
+
+      {/* ── 价格区 ── */}
+      <Card>
+        <CardContent className="p-4">
+          <div className="flex items-end justify-between">
+            {/* 左：价格 */}
+            <div>
+              <div className={cn('text-4xl font-bold font-mono tabular-nums', priceColor)}>
+                {quote.price > 0 ? quote.price.toFixed(2) : '—'}
               </div>
-
-              <div className="grid grid-cols-3 gap-3 mt-5">
-                {infoRows.map(([label, val]) => (
-                  <div key={label} className="bg-muted rounded-lg px-3 py-2.5">
-                    <div className="text-xs text-muted-foreground">{label}</div>
-                    <div className={cn(
-                      'font-medium text-sm font-mono tabular-nums mt-0.5',
-                      label === '净流入' ? (up ? 'text-stock-up' : 'text-stock-down') : 'text-foreground'
-                    )}>{val}</div>
-                  </div>
-                ))}
+              <div className={cn('flex items-center gap-2 mt-1.5 text-sm font-mono tabular-nums', priceColor)}>
+                <span>{up ? '+' : ''}{quote.change >= 0 ? '+' : ''}{quote.change.toFixed(2)}</span>
+                <span className={cn('inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded text-xs font-medium', priceBg, 'text-white')}>
+                  {up ? '▲' : '▼'} {Math.abs(quote.changePercent).toFixed(2)}%
+                </span>
               </div>
+            </div>
+            {/* 右：关键指标 */}
+            <div className="grid grid-cols-2 gap-x-6 gap-y-1 text-right">
+              {[
+                ['今开', quote.open.toFixed(2)],
+                ['昨收', quote.preClose.toFixed(2)],
+                ['最高', quote.high.toFixed(2)],
+                ['最低', quote.low.toFixed(2)],
+              ].map(([label, val]) => (
+                <div key={label}>
+                  <span className="text-xs text-muted-foreground">{label}</span>
+                  <span className="ml-2 text-sm font-mono tabular-nums font-medium">{val}</span>
+                </div>
+              ))}
+            </div>
+          </div>
 
-              <div className="flex gap-3 mt-5">
+          {/* 底部四条：成交量 / 成交额 / 换手率 / 净流入 */}
+          <div className="grid grid-cols-4 gap-3 mt-4 pt-3 border-t border-border">
+            {[
+              ['成交量', volStr(quote.volume)],
+              ['成交额',  fmtAmount(quote.amount)],
+              ['换手率',  quote.turnover > 0 ? quote.turnover.toFixed(2) + '%' : '—'],
+              ['净流入',  (quote.netInflow >= 0 ? '+' : '') + fmtAmount(Math.abs(quote.netInflow))],
+            ].map(([label, val]) => (
+              <div key={label} className="bg-muted/50 rounded-lg px-3 py-2 text-center">
+                <div className="text-xs text-muted-foreground">{label}</div>
+                <div className="text-sm font-mono tabular-nums font-medium mt-0.5">{val}</div>
+              </div>
+            ))}
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* ── 周期选择 + 图表 ── */}
+      <Card>
+        <CardHeader className="pb-0 px-4 pt-3">
+          <div className="flex items-center justify-between gap-2 flex-wrap">
+            <CardTitle className="text-sm font-medium">
+              {PERIODS.find(p => p.key === activePeriod)?.label ?? 'K线'}
+            </CardTitle>
+            <div className="flex items-center gap-1 flex-wrap">
+              {MAIN_PERIODS.map(p => (
                 <Button
-                  size="sm"
-                  onClick={() => fetch('/api/stocks/user', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ stockCode: code }) }).then(() => alert('已添加自选')).catch(() => alert('添加失败'))}
+                  key={p.key}
+                  variant={activePeriod === p.key ? 'default' : 'outline'}
+                  size="sm" className="h-7 text-xs px-2.5"
+                  onClick={() => setActivePeriod(p.key)}
                 >
-                  + 加入自选
+                  {p.label}
                 </Button>
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* Chart card */}
-          <Card>
-            <CardHeader className="pb-0 px-4 pt-4">
-              <div className="flex items-center justify-between">
-                <CardTitle className="text-sm font-medium">
-                  {PERIODS.find(p => p.key === activePeriod)?.label}
-                </CardTitle>
-                <div className="flex items-center gap-1 flex-wrap justify-end">
-                  {PERIODS.slice(0, 6).map(p => (
-                    <Button
+              ))}
+              <div className="relative">
+                <Button
+                  variant={SUB_PERIODS.some(p => p.key === activePeriod) ? 'default' : 'outline'}
+                  size="sm" className="h-7 text-xs px-2 gap-1"
+                  onClick={(e) => {
+                    const btn = e.currentTarget.parentElement!.querySelector('.sub-menu') as HTMLElement | null;
+                    if (btn) btn.classList.toggle('hidden');
+                  }}
+                >
+                  更多 <span>▾</span>
+                </Button>
+                <div className="sub-menu hidden absolute right-0 top-full mt-1 bg-card border border-border rounded-md shadow-lg z-20 overflow-hidden min-w-[110px]">
+                  {SUB_PERIODS.map(p => (
+                    <button
                       key={p.key}
-                      variant={activePeriod === p.key ? 'default' : 'outline'}
-                      size="sm"
-                      className="h-7 text-xs px-2.5"
-                      onClick={() => handlePeriodChange(p.key)}
+                      className={cn('w-full text-left px-3 py-1.5 text-xs hover:bg-accent transition-colors', activePeriod === p.key && 'bg-accent font-medium')}
+                      onClick={() => { setActivePeriod(p.key); document.querySelector('.sub-menu')?.classList.add('hidden'); }}
                     >
                       {p.label}
-                    </Button>
+                    </button>
                   ))}
-                  <div className="relative" ref={moreRef}>
-                    <Button
-                      variant={PERIODS.slice(6).some(p => p.key === activePeriod) ? 'default' : 'outline'}
-                      size="sm"
-                      className="h-7 text-xs px-2.5 gap-1"
-                      onClick={() => setShowMore(!showMore)}
-                    >
-                      更多 <span>▾</span>
-                    </Button>
-                    {showMore && (
-                      <div className="absolute right-0 top-full mt-1 bg-card border border-border rounded-md shadow-lg overflow-hidden z-10 min-w-[100px]">
-                        {PERIODS.slice(6).map(p => (
-                          <Button
-                            key={p.key}
-                            variant={activePeriod === p.key ? 'default' : 'ghost'}
-                            size="sm"
-                            className="w-full justify-start h-8 text-xs rounded-none"
-                            onClick={() => handlePeriodChange(p.key)}
-                          >
-                            {p.label}
-                          </Button>
-                        ))}
-                      </div>
-                    )}
-                  </div>
                 </div>
               </div>
-            </CardHeader>
-            <CardContent className="p-4">
-              {renderChart()}
-            </CardContent>
-          </Card>
-        </>
-      )}
+            </div>
+          </div>
+        </CardHeader>
+        <CardContent className="p-2">
+          {renderChart()}
+        </CardContent>
+      </Card>
+
+      {/* ── 底部指标 grid ── */}
+      <Card>
+        <CardContent className="p-4">
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-y-3 gap-x-4">
+            {[
+              ['总市值', quote.totalCap ? fmtCap(quote.totalCap) : '—'],
+              ['流通值', quote.circulateCap ? fmtCap(quote.circulateCap) : '—'],
+              ['市盈率(TTM)', '—'],
+              ['市净率', '—'],
+            ].map(([label, val]) => (
+              <div key={label} className="flex items-center justify-between">
+                <span className="text-xs text-muted-foreground">{label}</span>
+                <span className="text-sm font-mono font-medium">{val}</span>
+              </div>
+            ))}
+          </div>
+        </CardContent>
+      </Card>
+
     </div>
   );
 }

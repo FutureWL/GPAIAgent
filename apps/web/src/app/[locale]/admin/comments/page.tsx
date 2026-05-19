@@ -36,7 +36,7 @@ export default function CommentsPage() {
     setLoading(true);
     try {
       const res = await fetch(
-        `http://localhost:3001/admin/comments?page=${page}&pageSize=${pageSize}`,
+        `${process.env.NEXT_PUBLIC_API_URL}/admin/comments?page=${page}&pageSize=${pageSize}`,
         { credentials: 'include', cache: 'no-store' }
       );
       if (!res.ok) throw new Error('Failed');
@@ -56,7 +56,7 @@ export default function CommentsPage() {
 
   const handleDelete = async (id: string) => {
     try {
-      const res = await fetch(`http://localhost:3001/admin/comments/${id}`, {
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/admin/comments/${id}`, {
         method: 'DELETE',
         credentials: 'include',
       });

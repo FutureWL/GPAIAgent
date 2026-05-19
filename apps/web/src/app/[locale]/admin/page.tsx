@@ -34,7 +34,7 @@ interface Stats {
 
 async function fetchStats(): Promise<Stats | null> {
   try {
-    const res = await fetch('http://localhost:3001/admin/stats', {
+    const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/admin/stats`, {
       credentials: 'include',
       cache: 'no-store',
     });
@@ -47,7 +47,7 @@ async function fetchStats(): Promise<Stats | null> {
 
 async function fetchSyncStatus(): Promise<{ inQueue: number; recentJobs: number } | null> {
   try {
-    const res = await fetch('http://localhost:3001/admin/sync/status', {
+    const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/admin/sync/status`, {
       credentials: 'include',
       cache: 'no-store',
     });
