@@ -2,13 +2,15 @@
 
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
-import { Globe } from 'lucide-react';
+import { useTheme } from 'next-themes';
+import { Globe, Sun, Moon, Monitor } from 'lucide-react';
 import {
   Avatar,
   Dropdown,
   Tag,
   Badge,
   Button,
+  Tooltip,
 } from 'antd';
 import type { MenuProps } from 'antd';
 import {
@@ -43,11 +45,18 @@ const MEMBERSHIP_LABELS: Record<string, string> = { NORMAL: '普通会员', PRIV
 export default function Header({ locale, me }: HeaderProps) {
   const pathname = usePathname();
   const router = useRouter();
+  const { theme, setTheme } = useTheme();
 
   const switchLocale = (newLocale: string) => {
     const newPath = pathname.replace(/^\/(zh|en)/, `/${newLocale}`);
     window.location.href = newPath;
   };
+
+  const themeOptions: { key: string; label: string; icon: React.ReactNode }[] = [
+    { key: 'light', label: '亮色', icon: <Sun className="w-3.5 h-3.5" /> },
+    { key: 'dark', label: '暗色', icon: <Moon className="w-3.5 h-3.5" /> },
+    { key: 'system', label: '跟随系统', icon: <Monitor className="w-3.5 h-3.5" /> },
+  ];
 
   const handleLogout = async () => {
     try {
@@ -191,6 +200,22 @@ export default function Header({ locale, me }: HeaderProps) {
             <Globe className="w-3 h-3 mr-1" />
             EN
           </Button>
+        </div>
+
+        {/* Theme switcher */}
+        <div className="flex items-center gap-1 border rounded-md p-0.5">
+          {themeOptions.map((opt) => (
+            <Tooltip key={opt.key} title={opt.label} placement="bottom">
+              <Button
+                type="text"
+                size="small"
+                onClick={() => setTheme(opt.key)}
+                className={`h-7 w-8 p-0 flex items-center justify-center ${theme === opt.key ? 'bg-primary/10 text-primary' : 'text-muted-foreground hover:text-foreground'}`}
+              >
+                {opt.icon}
+              </Button>
+            </Tooltip>
+          ))}
         </div>
 
         {/* User dropdown */}
