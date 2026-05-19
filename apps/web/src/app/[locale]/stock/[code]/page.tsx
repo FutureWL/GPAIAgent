@@ -76,7 +76,7 @@ async function fetchStockQuote(code: string): Promise<Quote | null> {
     const resp = await fetch(`/api/stocks/${code}/quote`, { signal: AbortSignal.timeout(10000) });
     if (!resp.ok) return null;
     const qt = await resp.json();
-    if (!qt || !qt.price) return null;
+    if (!qt || !qt.code) return null;
     return {
       code: qt.code,
       name: qt.name || NAME_MAP[code] || code,
