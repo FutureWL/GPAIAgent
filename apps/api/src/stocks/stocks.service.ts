@@ -361,18 +361,18 @@ export class StocksService {
 
     // 周/月/年: 先查 stockPeriodKline（特定周期），再补缺
     const dbRecords = await this.prismaService.stockPeriodKline.findMany({
-      where: { stockId: { in: (await this.prismaService.stock.findMany({ where: { code }, select: { id: true } })).map(s => s.id) }, period },
+      where: { stockId: { in: (await this.prismaService.stock.findMany({ where: { code }, select: { id: true } })).map((s: { id: string }) => s.id) }, period },
       orderBy: { date: 'asc' },
       take: count,
     });
-    let dbBars = dbRecords.map(r => ({
+    let dbBars = dbRecords.map((r: { date: Date; open: number; close: number; high: number; low: number; volume: number }) => ({
       date: r.date.toISOString().slice(0, 10),
       open: r.open, close: r.close, high: r.high, low: r.low, volume: r.volume,
     }));
     if (dbBars.length < count) {
       const apiBars = await this.fetchPeriodKline(code, period, count);
       if (apiBars.length > 0) {
-        const dates = new Set(dbBars.map(b => b.date));
+        const dates = new Set(dbBars.map((b: { date: string }) => b.date));
         const newBars = apiBars.filter(b => !dates.has(b.date));
         dbBars = [...dbBars, ...newBars].slice(-count);
       }
@@ -668,7 +668,7 @@ export class StocksService {
         author: { select: { id: true, username: true, name: true } },
         _count: { select: { likes: true } },
       },
-    }).then(items => items.map(s => ({ ...s, likeCount: s._count.likes })));
+    }).then((items: Array<{ _count: { likes: number } }>) => items.map((s: { _count: { likes: number } }) => ({ ...s, likeCount: s._count.likes })));
   }
 
   // ============ 自选股 ============

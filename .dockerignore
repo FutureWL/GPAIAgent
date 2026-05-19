@@ -1,0 +1,14 @@
+**/.git
+**/.gitignore
+**/node_modules
+**/.claude
+**/.next
+**/dist
+**/*.log
+**/Dockerfile*
+**/docker-compose*
+**/.env*
+!**/.env.example
+**/backups
+**/deploy
+**/docs

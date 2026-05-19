@@ -19,7 +19,7 @@ async function bootstrap() {
     credentials: true,
   });
 
-  await app.listen(port);
+  await app.listen(port, '0.0.0.0');
   logger.log(`API server running on http://localhost:${port}`);
 }
 bootstrap();

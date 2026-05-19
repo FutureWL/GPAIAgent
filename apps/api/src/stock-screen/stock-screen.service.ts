@@ -267,7 +267,7 @@ ${stockList}
       aiRecommendation: s.aiRecommendation,
       riskLevel: s.riskLevel,
       createdAt: s.createdAt,
-      topStocks: s.results.map((r) => ({
+      topStocks: s.results.map((r: { stock: { code: string; name: string }; rank: number }) => ({
         code: r.stock.code,
         name: r.stock.name,
         rank: r.rank,
@@ -288,7 +288,7 @@ ${stockList}
 
     if (!screen) return null;
 
-    const codes = screen.results.map((r) => `${r.stock.market}${r.stock.code}`);
+    const codes = screen.results.map((r: { stock: { market: string; code: string } }) => `${r.stock.market}${r.stock.code}`);
     const quotes = await this.stocksService.getBatchQuotes(codes);
 
     return {
@@ -299,7 +299,7 @@ ${stockList}
       aiRecommendation: screen.aiRecommendation,
       riskLevel: screen.riskLevel,
       createdAt: screen.createdAt,
-      stocks: screen.results.map((r) => {
+      stocks: screen.results.map((r: { stock: { code: string; market: string; name?: string }; rank: number; score?: number }) => {
         const quote = quotes.find(
           (q) =>
             q.code === r.stock.code ||
