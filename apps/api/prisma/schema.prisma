@@ -39,9 +39,11 @@ model Stock {
   type      String   @default("stock") // stock / bond / fund / index
   createdAt DateTime @default(now())
 
-  userStocks UserStock[]
-  dailyData  StockDaily[]
-  strategies Strategy[]
+  userStocks    UserStock[]
+  dailyData     StockDaily[]
+  periodKlines  StockPeriodKline[]
+  quotes        StockQuote[]
+  strategies    Strategy[]
   aiGenerations AIGeneration[]
   stockScreenResults StockScreenResult[]
 }
@@ -73,6 +75,27 @@ model StockDaily {
   stock     Stock    @relation(fields: [stockId], references: [id], onDelete: Cascade)
 
   @@unique([stockId, date])
+  @@index([date])
+}
+
+// 多周期K线（周/月/季/年及分钟K线，用于缓存和离线访问）
+// 日K用 StockDaily，分钟K线(1/5/15/30/60min)用此表
+model StockPeriodKline {
+  id        String   @id @default(cuid())
+  stockId   String
+  period    String              // day | week | month | season | year | 1min | 5min | 15min | 30min | 60min
+  date      DateTime @db.Date  // 对日K是日期，对分钟K线是"YYYY-MM-DD"（时间部分忽略）
+  open      Float
+  close     Float
+  high      Float
+  low       Float
+  volume    Float
+  createdAt DateTime @default(now())
+
+  stock Stock @relation(fields: [stockId], references: [id], onDelete: Cascade)
+
+  @@unique([stockId, period, date])
+  @@index([stockId, period])
   @@index([date])
 }
 
@@ -236,6 +259,91 @@ model PostBookmark {
   user User @relation("PostBookmarkUser", fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([userId, postId])
+}
+
+// ============ 市场数据同步队列（数据库-backed） ============
+
+// 同步任务类型
+enum SyncTaskType {
+  REALTIME_QUOTE   // 实时行情（每分钟）
+  DAILY_KLINE      // 日K线（每日收盘后）
+  PERIOD_KLINE     // 多周期K线（周/月/季/年，每日收盘后）
+  MINUTE_KLINE     // 分钟K线（交易时段每15分钟）
+}
+
+// 同步任务状态
+enum SyncTaskStatus {
+  PENDING   // 待处理
+  PROCESSING // 处理中
+  COMPLETED // 完成
+  FAILED    // 失败（已达最大重试次数）
+}
+
+model SyncQueue {
+  id          String   @id @default(cuid())
+  type        SyncTaskType
+  target      String   // 股票代码，如 "600519"，或 "ALL"
+  period      String? // K线周期，如 "day","week","1min"，可选
+  priority    Int      @default(0)  // 越大越优先
+  retries     Int      @default(0)  // 已重试次数
+  maxRetries  Int      @default(3)  // 最大重试次数
+  status      SyncTaskStatus @default(PENDING)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([status, priority])
+  @@index([type, target])
+}
+
+// 同步任务执行记录
+enum SyncJobStatus {
+  SUCCESS
+  FAILURE
+  PARTIAL  // 部分成功（如批量中某些失败）
+}
+
+model SyncJob {
+  id          String   @id @default(cuid())
+  queueId     String?  // 对应的 SyncQueue id（可选，无队列的直接任务）
+  type        SyncTaskType
+  target      String   // 股票代码或 "ALL"
+  period      String?  // K线周期
+  status      SyncJobStatus
+  itemsTotal  Int      @default(0)  // 处理总条数
+  itemsOk     Int      @default(0)  // 成功条数
+  errorMsg    String?  // 错误信息
+  durationMs  Int?     // 耗时（毫秒）
+  startedAt   DateTime @default(now())
+  completedAt DateTime?
+
+  @@index([type, startedAt])
+  @@index([target])
+}
+
+// 实时行情快照（每小时刷新）
+model StockQuote {
+  id         String   @id @default(cuid())
+  stockId    String
+  price      Float              // 现价
+  change     Float              // 涨跌额
+  changePct  Float              // 涨跌幅 %
+  open       Float              // 开盘价
+  high       Float              // 最高价
+  low        Float              // 最低价
+  volume     Float              // 成交量（手）
+  amount     Float              // 成交额（元）
+  turnover   Float?             // 换手率 %
+  preClose   Float              // 前收盘
+  marketCap  Float?             // 总市值（元）
+  circulateCap Float?            // 流通市值（元）
+  netInflow  Float?             // 净流入（元）
+  capturedAt DateTime @default(now()) // 快照时间
+
+  stock Stock @relation(fields: [stockId], references: [id], onDelete: Cascade)
+
+  @@unique([stockId, capturedAt])
+  @@index([stockId, capturedAt])
+  @@index([capturedAt])
 }
 
 // ============ 选股相关 ============

@@ -44,11 +44,9 @@ export default function BlogDetailPage({ params }: { params: Promise<{ id: strin
   const [commentText, setCommentText] = useState('');
   const [submittingComment, setSubmittingComment] = useState(false);
 
-  const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
-
   // 获取文章详情
   useEffect(() => {
-    fetch(`${API_URL}/posts/${id}`)
+    fetch(`/api/posts/${id}`)
       .then((r) => r.json())
       .then((data) => {
         setPost(data);
@@ -59,7 +57,7 @@ export default function BlogDetailPage({ params }: { params: Promise<{ id: strin
 
   // 获取评论
   useEffect(() => {
-    fetch(`${API_URL}/posts/${id}/comments`)
+    fetch(`/api/posts/${id}/comments`)
       .then((r) => r.json())
       .then((data) => {
         setComments(data.comments || []);
@@ -69,7 +67,7 @@ export default function BlogDetailPage({ params }: { params: Promise<{ id: strin
   async function handleLike() {
     setLiking(true);
     try {
-      const res = await fetch(`${API_URL}/posts/${id}/like`, {
+      const res = await fetch(`/api/posts/${id}/like`, {
         method: 'POST',
         credentials: 'include',
       });
@@ -89,7 +87,7 @@ export default function BlogDetailPage({ params }: { params: Promise<{ id: strin
     if (!commentText.trim()) return;
     setSubmittingComment(true);
     try {
-      const res = await fetch(`${API_URL}/posts/${id}/comments`, {
+      const res = await fetch(`/api/posts/${id}/comments`, {
         method: 'POST',
         credentials: 'include',
         headers: { 'Content-Type': 'application/json' },

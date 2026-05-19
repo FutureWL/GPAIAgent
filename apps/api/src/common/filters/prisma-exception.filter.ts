@@ -28,9 +28,17 @@ export class PrismaExceptionFilter implements ExceptionFilter {
       return;
     }
 
-    // NestJS 内置异常直接透传
+    // NestJS 内置异常直接返回 JSON 响应
     if (exception instanceof HttpException) {
-      throw exception;
+      const status = exception.getStatus();
+      const body = exception.getResponse();
+      const message = typeof body === 'string' ? body : (body as any).message ?? body;
+      res.status(status).json({
+        statusCode: status,
+        message: Array.isArray(message) ? message[0] : message,
+        error: HttpStatus[status] ?? 'Error',
+      });
+      return;
     }
 
     // 未知错误：记录日志但不泄露内部信息

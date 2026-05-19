@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
 
-const PROD_API = 'http://localhost:3003';
 const DEV_API  = 'http://localhost:3001';
 
 export async function GET(
@@ -10,11 +9,17 @@ export async function GET(
   const { code } = await params;
   const { searchParams } = new URL(request.url);
   const days = searchParams.get('days') ?? '120';
+  const period = searchParams.get('period');
 
-  // 开发环境用 localhost:3001，生产环境用 localhost:3003
+  // 优先走 /kline 统一入口（支持所有周期）
+  // 不传 period 则走旧的 /daily 路由（保持兼容）
+  const targetPath = period
+    ? `/stocks/${code}/kline?period=${period}&count=${days}`
+    : `/stocks/${code}/daily?days=${days}`;
+
   const apiUrl = process.env.NEXT_PUBLIC_API_URL
-    ? `${process.env.NEXT_PUBLIC_API_URL}/stocks/${code}/daily?days=${days}`
-    : `${DEV_API}/api/stocks/${code}/daily?days=${days}`;
+    ? `${process.env.NEXT_PUBLIC_API_URL}${targetPath}`
+    : `${DEV_API}${targetPath}`;
 
   try {
     const resp = await fetch(apiUrl, { signal: AbortSignal.timeout(10000) });

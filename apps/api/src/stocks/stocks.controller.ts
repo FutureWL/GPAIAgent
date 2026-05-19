@@ -16,11 +16,30 @@ export class StocksController {
   @Get('quotes')
   async getQuotes(@Query('codes') codes: string) {
     if (!codes) {
-      // 默认返回主要指数
       return this.stocksService.getBatchQuotes(['sh000001', 'sz399001', 'sz399006']);
     }
     const list = codes.split(',').map((c) => c.trim()).filter(Boolean);
     return this.stocksService.getBatchQuotes(list);
+  }
+
+  /**
+   * 多周期K线（通用入口）
+   * period: minute | 5day | day | week | month | season | year | 1min | 5min | 15min | 30min | 60min
+   * count: 返回条数（默认120）
+   */
+  @Get(':code/kline')
+  getKline(
+    @Param('code') code: string,
+    @Query('period') period: string,
+    @Query('count') count?: string,
+  ) {
+    return this.stocksService.getStockKline(code, period ?? 'day', count ? parseInt(count) : 120);
+  }
+
+  /** 实时行情（经 API 层，不走前端直连第三方） */
+  @Get(':code/quote')
+  getRealtimeQuote(@Param('code') code: string) {
+    return this.stocksService.getRealtimeQuote(code);
   }
 
   @Get(':code')
@@ -33,7 +52,7 @@ export class StocksController {
     return this.stocksService.getStrategies(code);
   }
 
-  /** 日线历史数据（从本地数据库） */
+  /** 日线历史数据（从本地数据库，兼容旧路由） */
   @Get(':code/daily')
   getDaily(@Param('code') code: string, @Query('days') days?: string) {
     return this.stocksService.getStockDaily(code, days ? parseInt(days) : 250);

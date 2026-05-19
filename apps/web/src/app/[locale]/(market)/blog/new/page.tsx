@@ -18,8 +18,7 @@ export default function NewBlogPage() {
   useEffect(() => {
     const checkAuth = async () => {
       try {
-        const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
-        const res = await fetch(`${API_URL}/auth/me`, {
+        const res = await fetch(`/api/auth/me`, {
           credentials: 'include',
         });
         if (!res.ok) {
@@ -40,8 +39,7 @@ export default function NewBlogPage() {
     setError('');
 
     try {
-      const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
-      const res = await fetch(`${API_URL}/posts`, {
+      const res = await fetch(`/api/posts`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',

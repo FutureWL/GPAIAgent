@@ -7,8 +7,7 @@ async function getMe() {
   const token = cookieStore.get('gpai_access_token')?.value;
   if (!token) return null;
   try {
-    const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
-    const res = await fetch(`${API_URL}/auth/me`, {
+    const res = await fetch(`http://localhost:3001/auth/me`, {
       headers: { Cookie: `gpai_access_token=${token}` },
       cache: 'no-store',
     });

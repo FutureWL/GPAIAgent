@@ -23,6 +23,14 @@ class DuplicateServerChunkPlugin {
 
 const nextConfig: NextConfig = {
   reactStrictMode: true,
+  async rewrites() {
+    return [
+      {
+        source: '/api/:path*',
+        destination: 'http://localhost:3001/:path*',
+      },
+    ];
+  },
   webpack: (config, { isServer }) => {
     if (isServer) {
       config.plugins = config.plugins ?? [];
