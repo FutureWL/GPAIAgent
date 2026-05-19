@@ -23,7 +23,17 @@ export async function POST(request: NextRequest) {
     console.log('[login] backend status:', res.status);
 
     const data = await res.json();
-    return NextResponse.json(data, { status: res.status });
+    const response = NextResponse.json(data, { status: res.status });
+
+    // 透传所有 Set-Cookie（HttpOnly cookies）
+    const setCookies = res.headers.getSetCookie();
+    if (setCookies.length > 0) {
+      setCookies.forEach((cookie) => {
+        response.headers.append('set-cookie', cookie);
+      });
+    }
+
+    return response;
   } catch (err) {
     console.error('[login] unknown error:', err);
     return NextResponse.json({ message: '服务器内部错误' }, { status: 500 });
