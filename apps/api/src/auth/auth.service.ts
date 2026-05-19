@@ -18,7 +18,7 @@ type SafeUser = {
   name: string | null;
   avatar: string | null;
   email?: string | null;
-  bio?: string | null;
+  role?: string;
   createdAt?: Date;
   membership?: {
     level: string;
@@ -70,7 +70,7 @@ export class AuthService {
     // 开发环境 bypass：devtest / devpass123
     if (process.env.NODE_ENV !== 'production' && params.username === 'devtest' && params.password === 'devpass123') {
       await this.setAuthCookies(res, { id: user.id, username: user.username, role: user.role });
-      return { id: user.id, username: user.username, name: user.name, avatar: user.avatar };
+      return { id: user.id, username: user.username, name: user.name, avatar: user.avatar, role: user.role };
     }
 
     const ok = await bcrypt.compare(params.password, user.passwordHash);
@@ -85,6 +85,7 @@ export class AuthService {
       username: user.username,
       name: user.name,
       avatar: user.avatar,
+      role: user.role,
     };
   }
 
