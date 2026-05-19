@@ -47,7 +47,7 @@ export default function StockTicker() {
 
   if (loading) {
     return (
-      <div className="h-8 bg-primary/90 flex items-center px-4 text-xs text-white/80 overflow-hidden">
+      <div className="h-8 bg-primary/90 flex items-center px-4 text-xs text-white/80 overflow-hidden dark:bg-primary/70 dark:text-white/70">
         <span className="animate-pulse">加载行情数据...</span>
       </div>
     );
@@ -55,7 +55,7 @@ export default function StockTicker() {
 
   if (unavailable || !quotes.length) {
     return (
-      <div className="h-8 bg-primary/90 flex items-center px-4 text-xs text-white/60">
+      <div className="h-8 bg-primary/90 flex items-center px-4 text-xs text-white/60 dark:bg-primary/70 dark:text-white/50">
         {unavailable ? '行情数据暂不可用' : ''}
       </div>
     );

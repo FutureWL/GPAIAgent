@@ -33,8 +33,7 @@ export default function LoginPage() {
         setError(data.message || (locale === 'zh' ? '登录失败' : 'Login failed'));
         return;
       }
-      // API sets HttpOnly cookie via Set-Cookie header, credentials: 'include' sends it automatically
-      document.cookie = `gpai_access_token=${data.token}; path=/; max-age=${7 * 24 * 60 * 60}`;
+      // API sets HttpOnly cookie via Set-Cookie header — no manual cookie needed
       router.push(`/${locale}/home`);
       router.refresh();
     } catch {

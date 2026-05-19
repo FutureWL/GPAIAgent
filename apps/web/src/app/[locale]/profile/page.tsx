@@ -1,43 +1,12 @@
-import { cookies } from 'next/headers';
 import { redirect } from 'next/navigation';
 import UserCard from '@/components/user/user-card';
+import { getMe, getStats } from '@/lib/auth';
 
-async function getMe() {
-  const cookieStore = await cookies();
-  const token = cookieStore.get('gpai_access_token');
-  if (!token) return null;
-  try {
-    const res = await fetch(`http://localhost:3001/auth/me`, {
-      headers: { Cookie: `gpai_access_token=${token.value}` },
-      cache: 'no-store',
-    });
-    if (!res.ok) return null;
-    return await res.json();
-  } catch {
-    return null;
-  }
-}
-
-async function getStats() {
-  const cookieStore = await cookies();
-  const token = cookieStore.get('gpai_access_token');
-  if (!token) return null;
-  try {
-    const res = await fetch(`http://localhost:3001/auth/stats`, {
-      headers: { Cookie: `gpai_access_token=${token.value}` },
-      cache: 'no-store',
-    });
-    if (!res.ok) return null;
-    return await res.json();
-  } catch {
-    return null;
-  }
-}
-
-export default async function ProfilePage() {
+export default async function ProfilePage({ params }: { params: Promise<{ locale: string }> }) {
+  const { locale } = await params;
   const me = await getMe();
   if (!me) {
-    redirect('/login');
+    redirect(`/${locale}/login`);
   }
 
   const stats = await getStats();
