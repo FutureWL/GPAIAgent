@@ -60,32 +60,8 @@ export default function Sidebar({ locale, me }: SidebarProps) {
   return (
     <aside className="flex flex-col h-full border-r bg-card transition-all duration-200"
       style={{ width: collapsed ? 64 : 224 }}>
-      {/* Logo */}
-      <div className="flex items-center justify-between px-3 py-4 border-b border-border">
-        {!collapsed && (
-          <div>
-            <div className="flex items-center gap-2">
-              <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24"
-                fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"
-                strokeLinejoin="round" className="lucide lucide-trending-up w-5 h-5 text-primary">
-                <path d="M16 7h6v6" /><path d="m22 7-8.5 8.5-5-5L2 17" />
-              </svg>
-              <span className="font-bold text-lg">GPAIAgent</span>
-            </div>
-            <p className="text-xs text-muted-foreground mt-0.5">
-              {locale === 'zh' ? '短线炒股辅助平台' : 'Stock Trading Assistant'}
-            </p>
-          </div>
-        )}
-        <button
-          onClick={() => setCollapsed(!collapsed)}
-          className="inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium transition-colors hover:bg-accent hover:text-accent-foreground h-10 w-10 flex-shrink-0"
-        >
-          {collapsed ? <ChevronRight size={16} /> : <ChevronLeft size={16} />}
-        </button>
-      </div>
 
-      {/* Nav */}
+      {/* Nav — Logo 已移至顶部导航栏 */}
       <nav className="flex-1 overflow-y-auto py-3 px-2">
         {navItems(locale).map((item) => (
           <Link
@@ -102,42 +78,42 @@ export default function Sidebar({ locale, me }: SidebarProps) {
           </Link>
         ))}
 
-        {/* 底部用户区域 */}
-        {me && (
-          <>
-            <div className="border-t border-border my-3" />
-            <div className="px-2 space-y-1">
-              <Link
-                href={`/${locale}/profile`}
-                className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm transition-colors ${
-                  isActive(`/${locale}/profile`)
-                    ? 'bg-primary/10 text-primary font-medium'
-                    : 'text-muted-foreground hover:bg-accent hover:text-accent-foreground'
-                }`}
-              >
-                <UserSwitch size={18} className="flex-shrink-0" />
-                {!collapsed && <span>{locale === 'zh' ? '个人主页' : 'Profile'}</span>}
-              </Link>
-              <Link
-                href={`/${locale}/settings`}
-                className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm transition-colors ${
-                  isActive(`/${locale}/settings`)
-                    ? 'bg-primary/10 text-primary font-medium'
-                    : 'text-muted-foreground hover:bg-accent hover:text-accent-foreground'
-                }`}
-              >
-                <Settings size={18} className="flex-shrink-0" />
-                {!collapsed && <span>{locale === 'zh' ? '账户设置' : 'Settings'}</span>}
-              </Link>
-            </div>
-          </>
+        {/* 登录前底部提示 */}
+        {!me && !collapsed && (
+          <div className="mt-4 px-3 text-xs text-muted-foreground text-center py-2">
+            {locale === 'zh' ? '登录后享受更多功能' : 'Sign in for more features'}
+          </div>
         )}
       </nav>
 
-      {/* Bottom user section */}
-      <div className="p-3 border-t border-border">
-        {me ? (
-          <div className={`flex items-center gap-2 ${collapsed ? 'justify-center' : ''}`}>
+      {/* 用户区域（位于导航和折叠按钮之间） */}
+      {me && (
+        <div className="px-2 py-3 border-t border-border">
+          <Link
+            href={`/${locale}/profile`}
+            className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm transition-colors mb-1 ${
+              isActive(`/${locale}/profile`)
+                ? 'bg-primary/10 text-primary font-medium'
+                : 'text-muted-foreground hover:bg-accent hover:text-accent-foreground'
+            }`}
+          >
+            <UserSwitch size={18} className="flex-shrink-0" />
+            {!collapsed && <span>{locale === 'zh' ? '个人主页' : 'Profile'}</span>}
+          </Link>
+          <Link
+            href={`/${locale}/settings`}
+            className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm transition-colors ${
+              isActive(`/${locale}/settings`)
+                ? 'bg-primary/10 text-primary font-medium'
+                : 'text-muted-foreground hover:bg-accent hover:text-accent-foreground'
+            }`}
+          >
+            <Settings size={18} className="flex-shrink-0" />
+            {!collapsed && <span>{locale === 'zh' ? '账户设置' : 'Settings'}</span>}
+          </Link>
+
+          {/* 用户卡片 */}
+          <div className={`flex items-center gap-2 mt-2 ${collapsed ? 'justify-center' : ''}`}>
             <Tooltip title={collapsed ? `${displayName} (@${me.username})` : undefined}>
               <Link href={`/${locale}/profile`} className="flex-shrink-0">
                 <Avatar
@@ -167,11 +143,18 @@ export default function Sidebar({ locale, me }: SidebarProps) {
               </div>
             )}
           </div>
-        ) : !collapsed && (
-          <div className="text-xs text-muted-foreground text-center py-1">
-            {locale === 'zh' ? '登录后享受更多功能' : 'Sign in for more features'}
-          </div>
-        )}
+        </div>
+      )}
+
+      {/* 折叠按钮 — 移到最底部 */}
+      <div className={`p-3 border-t border-border ${collapsed ? 'flex justify-center' : ''}`}>
+        <button
+          onClick={() => setCollapsed(!collapsed)}
+          className="inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium transition-colors hover:bg-accent hover:text-accent-foreground h-10 w-10 flex-shrink-0"
+        >
+          {collapsed ? <ChevronRight size={16} /> : <ChevronLeft size={16} />}
+          {!collapsed && <span className="text-xs">{locale === 'zh' ? '收起' : 'Collapse'}</span>}
+        </button>
       </div>
     </aside>
   );
