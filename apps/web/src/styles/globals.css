@@ -24,6 +24,9 @@
     --input: 214 32% 87%;
     --ring: 221 83% 53%;
     --radius: 0.5rem;
+    /* Stock colors — A股标准: 涨红跌绿 */
+    --stock-up: 0 84% 60%;
+    --stock-down: 142 71% 45%;
   }
 
   .dark {
@@ -47,6 +50,9 @@
     --input: 217 33% 17%;
     --ring: 224 76% 48%;
     --radius: 0.5rem;
+    /* Stock colors — A股标准: 涨红跌绿 */
+    --stock-up: 0 74% 51%;
+    --stock-down: 142 69% 38%;
   }
 }
 
@@ -75,7 +81,14 @@
   background: hsl(217.2 32.6% 40%);
 }
 
-/* Markdown body */
+@layer utilities {
+  .text-stock-up   { color: hsl(var(--stock-up)); }
+  .text-stock-down { color: hsl(var(--stock-down)); }
+  .bg-stock-up     { background-color: hsl(var(--stock-up) / 0.12); }
+  .bg-stock-down   { background-color: hsl(var(--stock-down) / 0.12); }
+  .border-stock-up   { border-color: hsl(var(--stock-up)); }
+  .border-stock-down { border-color: hsl(var(--stock-down)); }
+}
 .markdown-body {
   @apply text-gray-200 leading-relaxed;
 }

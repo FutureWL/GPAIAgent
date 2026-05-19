@@ -3,6 +3,11 @@
 import { useEffect, useState, useCallback } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
 import { fmtCap, fmtAmount } from '@/lib/stock-utils';
+import { Input } from '@/components/ui/input';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Icon, icons } from '@/components/ui/icon';
+import { cn } from '@/lib/utils';
 
 type StockItem = {
   code: string;
@@ -10,25 +15,25 @@ type StockItem = {
   price: number;
   change: number;
   changePercent: number;
-  volume?: number;       // 手
-  amount?: number;       // 万元
-  turnover?: number;      // %
-  circulateCap?: number;  // 亿元
-  totalCap?: number;      // 亿元
-  netInflow?: number;     // 万元
+  volume?: number;
+  amount?: number;
+  turnover?: number;
+  circulateCap?: number;
+  totalCap?: number;
+  netInflow?: number;
   isIndex?: boolean;
 };
 
-// A股指数
 const INDEX_CODES = [
-  'sh000001','sz399001','sz399006','sz399005',
-  'sh000300','sh000016','sh000688','sz399901',
-  'sz399106','sh000905','sh000852','sz399303',
-  'sz399606','sh000015','sh000689','sz399550',
-  'sh000978','sz399328','sh000888','sh000001',
+  'sh000001', 'sz399001', 'sz399006',
 ];
 
-// 主要股票池
+const INDEX_NAMES: Record<string, string> = {
+  'sh000001': '上证指数',
+  'sz399001': '深证成指',
+  'sz399006': '创业板指',
+};
+
 const STOCK_CODES = [
   'sh600519','sh600036','sh601318','sh600887','sh601888','sh600030','sh601857',
   'sh600276','sh600585','sh600690','sh600809','sh601012','sh600309','sh600048',
@@ -52,11 +57,11 @@ function parseTencentLine(raw: string): StockItem | null {
     if (eqIdx < 0) return null;
     const parts = raw.substring(eqIdx + 2).split('~');
     if (parts.length < 10) return null;
-
-    // 指数: parts[1] 为空或 undefined
     const isIndex = !parts[1] || parts[1] === parts[2];
     const code = parts[2] || '';
-    const name = isIndex ? (parts[40] || parts[1] || code) : (parts[1] || code);
+    const name = isIndex
+      ? (parts[40] || parts[1] || code)
+      : (parts[1] || code);
     const price = parseFloat(parts[3]) || 0;
     const change = parseFloat(parts[31]) || 0;
     const changePercent = parseFloat(parts[32]) || 0;
@@ -66,24 +71,11 @@ function parseTencentLine(raw: string): StockItem | null {
     const totalCap = parseFloat(parts[44]) || 0;
     const circulateCap = parseFloat(parts[45]) || 0;
     const netInflow = parseFloat(parts[74]) || 0;
-
     return {
-      code,
-      name: name.replace(/["\s]/g, ''),
-      price,
-      change,
-      changePercent,
-      volume,
-      amount,
-      turnover,
-      circulateCap,
-      totalCap,
-      netInflow,
-      isIndex,
+      code, name: name.replace(/["\s]/g, ''), price, change, changePercent,
+      volume, amount, turnover, circulateCap, totalCap, netInflow, isIndex,
     };
-  } catch {
-    return null;
-  }
+  } catch { return null; }
 }
 
 async function fetchQuotesBatch(codes: string[]): Promise<StockItem[]> {
@@ -97,6 +89,56 @@ async function fetchQuotesBatch(codes: string[]): Promise<StockItem[]> {
   const text = new TextDecoder('gbk').decode(Buffer.from(buffer));
   const lines = text.trim().split('\n');
   return lines.map(parseTencentLine).filter(Boolean) as StockItem[];
+}
+
+function StockRow({ s, locale }: { s: StockItem; locale: string }) {
+  const up = s.change >= 0;
+  return (
+    <tr
+      className="border-b border-border hover:bg-accent/50 cursor-pointer transition-colors"
+      onClick={() => window.location.href = `/${locale}/stock/${s.code}`}
+    >
+      <td className="px-3 py-2.5 text-xs text-muted-foreground font-mono">{s.code}</td>
+      <td className="px-3 py-2.5 text-sm font-medium">{s.name}</td>
+      <td className="px-3 py-2.5 text-right font-mono text-sm font-medium tabular-nums">
+        {s.price > 0 ? s.price.toFixed(2) : '-'}
+      </td>
+      <td className={`px-3 py-2.5 text-right font-mono text-sm tabular-nums ${up ? 'text-stock-up' : 'text-stock-down'}`}>
+        {up ? '+' : ''}{s.change.toFixed(2)}
+      </td>
+      <td className="px-3 py-2.5 text-right">
+        <span className={`inline-flex items-center gap-0.5 text-xs font-mono tabular-nums px-1.5 py-0.5 rounded ${up ? 'bg-stock-up text-stock-up' : 'bg-stock-down text-stock-down'}`}>
+          {up ? '▲' : '▼'} {Math.abs(s.changePercent).toFixed(2)}%
+        </span>
+      </td>
+      <td className="px-3 py-2.5 text-right text-xs text-muted-foreground font-mono tabular-nums hidden md:table-cell">
+        {s.amount ? fmtAmount(s.amount) : '-'}
+      </td>
+      <td className="px-3 py-2.5 text-right text-xs text-muted-foreground font-mono tabular-nums hidden lg:table-cell">
+        {s.turnover ? `${s.turnover.toFixed(2)}%` : '-'}
+      </td>
+      <td className="px-3 py-2.5 text-right text-xs text-muted-foreground font-mono tabular-nums hidden xl:table-cell">
+        {s.circulateCap ? fmtCap(s.circulateCap) : '-'}
+      </td>
+    </tr>
+  );
+}
+
+function IndexCard({ s }: { s: StockItem }) {
+  const up = s.change >= 0;
+  return (
+    <Card className="flex-1 min-w-[160px] hover:shadow-md transition-shadow">
+      <CardContent className="p-4">
+        <div className="text-xs text-muted-foreground mb-1">{s.name}</div>
+        <div className={`text-2xl font-bold font-mono tabular-nums ${up ? 'text-stock-up' : 'text-stock-down'}`}>
+          {s.price > 0 ? s.price.toFixed(2) : '-'}
+        </div>
+        <div className={`text-sm font-mono tabular-nums mt-1 ${up ? 'text-stock-up' : 'text-stock-down'}`}>
+          {up ? '+' : ''}{s.change.toFixed(2)} &nbsp; {up ? '+' : ''}{Math.abs(s.changePercent).toFixed(2)}%
+        </div>
+      </CardContent>
+    </Card>
+  );
 }
 
 export default function MarketPage() {
@@ -119,18 +161,13 @@ export default function MarketPage() {
       }
       const results = await Promise.all(batches.map(fetchQuotesBatch));
       const merged = results.flat();
-
-      // 按成交量降序排
       merged.sort((a, b) => (b.volume || 0) - (a.volume || 0));
-
-      // 去除重复
       const seen = new Set<string>();
       const unique = merged.filter(s => {
         if (seen.has(s.code)) return false;
         seen.add(s.code);
         return true;
       });
-
       setAllStocks(unique);
     } catch {
       setAllStocks([]);
@@ -143,7 +180,7 @@ export default function MarketPage() {
 
   useEffect(() => {
     if (!search.trim()) {
-      setDisplayedStocks(allStocks.slice(0, 100));
+      setDisplayedStocks(allStocks.filter(s => !s.isIndex).slice(0, 100));
     } else {
       const q = search.toUpperCase();
       setDisplayedStocks(
@@ -152,97 +189,104 @@ export default function MarketPage() {
     }
   }, [search, allStocks]);
 
+  const indexStocks = allStocks.filter(s => s.isIndex);
+  const isZh = locale === 'zh';
+
   return (
-    <div className="space-y-4">
-      <div>
-        <h1 className="text-xl font-bold">行情</h1>
-        <p className="text-sm text-slate-400 mt-1">A股市场实时行情 · 共 {allStocks.length} 只</p>
+    <div className="max-w-6xl mx-auto px-4 sm:px-6 py-6 space-y-6">
+
+      {/* Hero header */}
+      <div className="space-y-1">
+        <h1 className="text-2xl font-bold tracking-tight">
+          {isZh ? '行情中心' : 'Market Center'}
+        </h1>
+        <p className="text-sm text-muted-foreground">
+          {isZh ? 'A股市场实时行情' : 'Real-time A-Share Market Data'} &nbsp;·&nbsp;
+          {allStocks.filter(s => !s.isIndex).length > 0 && (
+            <span>{allStocks.filter(s => !s.isIndex).length} {isZh ? '只股票' : 'stocks'}</span>
+          )}
+        </p>
       </div>
 
-      <div className="flex gap-3">
-        <input
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          placeholder="搜索股票代码或名称..."
-          className="flex-1 bg-slate-800 border border-slate-700 rounded-lg px-4 py-2.5 text-sm outline-none focus:border-slate-500"
-        />
-        <button
-          onClick={fetchMarket}
-          className="bg-slate-700 hover:bg-slate-600 text-white rounded-lg px-4 py-2.5 text-sm"
-        >
-          刷新
-        </button>
-      </div>
-
-      <div className="bg-slate-800/50 border border-slate-700 rounded-xl overflow-hidden">
-        <div className="px-4 py-2 border-b border-slate-700 flex items-center justify-between">
-          <span className="text-xs text-slate-400">
-            {loading ? '加载中...' : `共 ${displayedStocks.length} 只`}
-          </span>
-          <span className="text-xs text-green-400">● 实时</span>
+      {/* Index cards */}
+      {indexStocks.length > 0 && (
+        <div className="flex gap-3 overflow-x-auto pb-1">
+          {indexStocks.map(s => <IndexCard key={s.code} s={s} />)}
         </div>
-        {loading && allStocks.length === 0 ? (
-          <div className="p-8 text-center text-slate-400 text-sm">正在获取行情数据...</div>
-        ) : displayedStocks.length === 0 ? (
-          <div className="p-8 text-center text-slate-400 text-sm">暂无数据</div>
-        ) : (
+      )}
+
+      {/* Search + actions */}
+      <div className="flex gap-3">
+        <div className="relative flex-1 max-w-sm">
+          <Icon name={icons.Search} className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
+          <Input
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder={isZh ? '搜索股票代码或名称...' : 'Search code or name...'}
+            className="pl-9"
+          />
+        </div>
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={fetchMarket}
+          disabled={loading}
+          className="gap-1.5"
+        >
+          <Icon name={icons.RefreshCw} className={cn('h-3.5 w-3.5', loading && 'animate-spin')} />
+          {isZh ? '刷新' : 'Refresh'}
+        </Button>
+      </div>
+
+      {/* Market table */}
+      <Card>
+        <CardHeader className="pb-0 px-4 pt-4">
+          <div className="flex items-center justify-between">
+            <CardTitle className="text-sm font-medium">
+              {isZh ? '全部股票' : 'All Stocks'}
+            </CardTitle>
+            <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+              <span className="inline-block w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse" />
+              {loading ? (isZh ? '加载中...' : 'Loading...') : `${displayedStocks.length} ${isZh ? '只' : ''}`}
+            </div>
+          </div>
+        </CardHeader>
+        <CardContent className="p-0">
           <div className="overflow-x-auto">
             <table className="w-full text-xs">
               <thead>
-                <tr className="text-slate-400 border-b border-slate-700">
-                  <th className="text-left px-3 py-2 font-normal">代码</th>
-                  <th className="text-left px-3 py-2 font-normal">名称</th>
-                  <th className="text-right px-3 py-2 font-normal">现价</th>
-                  <th className="text-right px-3 py-2 font-normal">涨跌</th>
-                  <th className="text-right px-3 py-2 font-normal">涨跌幅</th>
-                  <th className="text-right px-3 py-2 font-normal">成交额</th>
-                  <th className="text-right px-3 py-2 font-normal">换手率</th>
-                  <th className="text-right px-3 py-2 font-normal">流通市值</th>
-                  <th className="text-right px-3 py-2 font-normal">总市值</th>
-                  <th className="text-right px-3 py-2 font-normal">净流入</th>
+                <tr className="text-muted-foreground border-b border-border">
+                  <th className="text-left px-3 py-2.5 font-normal">{isZh ? '代码' : 'Code'}</th>
+                  <th className="text-left px-3 py-2.5 font-normal">{isZh ? '名称' : 'Name'}</th>
+                  <th className="text-right px-3 py-2.5 font-normal">{isZh ? '现价' : 'Price'}</th>
+                  <th className="text-right px-3 py-2.5 font-normal">{isZh ? '涨跌' : 'Change'}</th>
+                  <th className="text-right px-3 py-2.5 font-normal">{isZh ? '涨跌幅' : '%'}</th>
+                  <th className="text-right px-3 py-2.5 font-normal hidden md:table-cell">{isZh ? '成交额' : 'Turnover'}</th>
+                  <th className="text-right px-3 py-2.5 font-normal hidden lg:table-cell">{isZh ? '换手率' : 'Rate'}</th>
+                  <th className="text-right px-3 py-2.5 font-normal hidden xl:table-cell">{isZh ? '流通市值' : 'MCap'}</th>
                 </tr>
               </thead>
               <tbody>
-                {displayedStocks.map((s) => {
-                  const up = s.change >= 0;
-                  return (
-                    <tr
-                      key={s.code}
-                      className="border-b border-slate-800 hover:bg-slate-700/30 cursor-pointer"
-                      onClick={() => router.push(`/${locale}/stock/${s.code}`)}
-                    >
-                      <td className="px-3 py-2 text-slate-400">{s.code}</td>
-                      <td className="px-3 py-2 font-medium">{s.name}</td>
-                      <td className="px-3 py-2 text-right">{s.price > 0 ? s.price.toFixed(2) : '-'}</td>
-                      <td className={`px-3 py-2 text-right ${up ? 'text-red-400' : 'text-green-400'}`}>
-                        {up ? '+' : ''}{s.change.toFixed(2)}
-                      </td>
-                      <td className={`px-3 py-2 text-right ${up ? 'text-red-400' : 'text-green-400'}`}>
-                        {up ? '+' : ''}{s.changePercent.toFixed(2)}%
-                      </td>
-                      <td className="px-3 py-2 text-right text-slate-300">
-                        {s.amount ? fmtAmount(s.amount) : '-'}
-                      </td>
-                      <td className="px-3 py-2 text-right text-slate-300">
-                        {s.turnover ? s.turnover.toFixed(2) + '%' : '-'}
-                      </td>
-                      <td className="px-3 py-2 text-right text-slate-300">
-                        {s.circulateCap ? fmtCap(s.circulateCap) : '-'}
-                      </td>
-                      <td className="px-3 py-2 text-right text-slate-300">
-                        {s.totalCap ? fmtCap(s.totalCap) : '-'}
-                      </td>
-                      <td className={`px-3 py-2 text-right ${up ? 'text-red-400' : 'text-green-400'}`}>
-                        {s.netInflow ? (up ? '+' : '-') + fmtAmount(Math.abs(s.netInflow)) : '-'}
-                      </td>
-                    </tr>
-                  );
-                })}
+                {loading && displayedStocks.length === 0 ? (
+                  <tr>
+                    <td colSpan={8} className="text-center py-16 text-muted-foreground">
+                      {isZh ? '正在获取行情数据...' : 'Fetching market data...'}
+                    </td>
+                  </tr>
+                ) : displayedStocks.length === 0 ? (
+                  <tr>
+                    <td colSpan={8} className="text-center py-16 text-muted-foreground">
+                      {isZh ? '暂无数据' : 'No data'}
+                    </td>
+                  </tr>
+                ) : (
+                  displayedStocks.map(s => <StockRow key={s.code} s={s} locale={locale} />)
+                )}
               </tbody>
             </table>
           </div>
-        )}
-      </div>
+        </CardContent>
+      </Card>
     </div>
   );
 }

@@ -22,82 +22,96 @@ const TYPE_LABELS: Record<string, { zh: string; en: string }> = {
   tutorial: { zh: '教程', en: 'Tutorial' },
 };
 
+const TYPE_GRADIENTS: Record<string, string> = {
+  article: 'from-blue-500/20 to-indigo-500/20',
+  video: 'from-red-500/20 to-orange-500/20',
+  tutorial: 'from-green-500/20 to-emerald-500/20',
+};
+
 export default async function BlogPage() {
   const locale = await getLocale();
+  const isZh = locale === 'zh';
   const { posts, total } = await getPosts();
 
   return (
-    <div className="max-w-4xl mx-auto">
-      {/* Page header */}
-      <div className="mb-8">
-        <h1 className="text-2xl font-bold">
-          {locale === 'zh' ? '博客' : 'Blog'}
+    <div className="max-w-6xl mx-auto px-4 sm:px-6 py-8">
+
+      {/* Hero */}
+      <div className="mb-10 space-y-3">
+        <h1 className="text-3xl font-bold tracking-tight">
+          {isZh ? '博客' : 'Blog'}
         </h1>
-        <p className="text-muted-foreground mt-1">
-          {locale === 'zh' ? `共 ${total} 篇内容` : `${total} posts`}
+        <p className="text-muted-foreground">
+          {isZh
+            ? `共 ${total} 篇深度内容，涵盖选股策略、技术分析与市场洞察`
+            : `${total} articles on stock strategies, technical analysis and market insights`}
         </p>
       </div>
 
       {/* Posts grid */}
-      <div className="grid gap-4">
-        {posts.length === 0 ? (
-          <Card>
-            <CardContent className="py-12 text-center text-muted-foreground">
-              {locale === 'zh' ? '暂无内容' : 'No posts yet'}
-            </CardContent>
-          </Card>
-        ) : (
-          posts.map((post: any) => {
-            const typeLabel = TYPE_LABELS[post.type]?.[locale === 'zh' ? 'zh' : 'en'] || post.type;
+      {posts.length === 0 ? (
+        <Card className="py-16 text-center">
+          <CardContent className="text-muted-foreground">
+            {isZh ? '暂无内容，敬请期待' : 'No posts yet. Stay tuned.'}
+          </CardContent>
+        </Card>
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+          {posts.map((post: any) => {
+            const typeLabel = TYPE_LABELS[post.type]?.[isZh ? 'zh' : 'en'] || post.type;
+            const gradient = TYPE_GRADIENTS[post.type] || 'from-muted/50 to-muted/30';
             const timeAgo = (() => {
               try {
-                return formatDistanceToNow(new Date(post.createdAt), { locale: locale });
-              } catch {
-                return '';
-              }
+                return formatDistanceToNow(new Date(post.createdAt), { locale });
+              } catch { return ''; }
             })();
+
             return (
-              <Card key={post.id} className="hover:bg-accent/5 transition-colors">
-                <Link href={`/${locale}/blog/${post.id}`}>
-                  <CardHeader className="pb-3">
-                    <div className="flex items-start justify-between gap-4">
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2 mb-1">
-                          <Badge variant="secondary">{typeLabel}</Badge>
-                        </div>
-                        <h2 className="text-lg font-semibold leading-tight line-clamp-2">
-                          {post.title}
-                        </h2>
-                      </div>
-                      {post.coverImage && (
-                        <img
-                          src={post.coverImage}
-                          alt={post.title}
-                          className="w-24 h-16 object-cover rounded-md flex-shrink-0"
-                        />
-                      )}
+              <Link key={post.id} href={`/${locale}/blog/${post.id}`}>
+                <Card className="h-full hover:shadow-md hover:border-primary/30 transition-all duration-200 group">
+                  {/* Cover image or gradient placeholder */}
+                  {post.coverImage ? (
+                    <div className="aspect-video overflow-hidden rounded-t-lg">
+                      <img
+                        src={post.coverImage}
+                        alt={post.title}
+                        className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                      />
                     </div>
+                  ) : (
+                    <div className={`h-32 bg-gradient-to-br ${gradient} rounded-t-lg flex items-center justify-center`}>
+                      <span className="text-4xl opacity-30">📊</span>
+                    </div>
+                  )}
+
+                  <CardHeader className="pb-2">
+                    <div className="flex items-center gap-2 mb-2">
+                      <Badge variant="secondary" className="text-xs">{typeLabel}</Badge>
+                    </div>
+                    <h2 className="text-base font-semibold leading-snug line-clamp-2 group-hover:text-primary transition-colors">
+                      {post.title}
+                    </h2>
                   </CardHeader>
+
                   <CardContent className="pb-3">
                     <p className="text-sm text-muted-foreground line-clamp-2">
-                      {post.excerpt || post.content?.replace(/<[^>]+>/g, '').slice(0, 120)}
+                      {post.excerpt || post.content?.replace(/<[^>]+>/g, '').slice(0, 100)}
                     </p>
                   </CardContent>
-                  <CardFooter className="text-xs text-muted-foreground gap-4">
-                    <span>{post.author?.username || '未知作者'}</span>
+
+                  <CardFooter className="text-xs text-muted-foreground gap-3 pt-0">
+                    <span className="font-medium truncate">{post.author?.username || (isZh ? '匿名' : 'Anonymous')}</span>
                     <span>·</span>
                     <span>{timeAgo}</span>
                     <span>·</span>
-                    <span>{post.viewCount || 0} 阅读</span>
-                    <span>·</span>
-                    <span>{post.likeCount || 0} 赞</span>
+                    <span>{post.viewCount || 0} {isZh ? '阅读' : 'views'}</span>
                   </CardFooter>
-                </Link>
-              </Card>
+                </Card>
+              </Link>
             );
-          })
-        )}
-      </div>
+          })}
+        </div>
+      )}
     </div>
   );
 }
