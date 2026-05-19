@@ -2,6 +2,7 @@
 
 import React from 'react';
 import { CreditCard } from 'lucide-react';
+import { Icon, icons } from '@/components/ui/icon';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 
 export default function MembershipsPage() {
@@ -17,7 +18,7 @@ export default function MembershipsPage() {
         </CardHeader>
         <CardContent>
           <div className="flex flex-col items-center justify-center py-12 text-muted-foreground">
-            <CreditCard className="h-10 w-10 mb-3 opacity-30" />
+            <Icon name={icons.CreditCard} className="h-10 w-10 mb-3 opacity-30" />
             <p className="text-sm">暂无会员数据</p>
           </div>
         </CardContent>

@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { Eye, EyeOff, TrendingUp } from 'lucide-react';
+import { Icon, icons } from '@/components/ui/icon';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
@@ -49,7 +49,7 @@ export default function LoginPage() {
       <Card className="w-full max-w-md">
         <CardHeader className="space-y-1">
           <div className="flex items-center gap-2 mb-2">
-            <TrendingUp className="w-6 h-6 text-primary" />
+            <Icon name={icons.TrendingUp} className="w-6 h-6 text-primary" />
             <CardTitle className="text-2xl">GPAIAgent</CardTitle>
           </div>
           <CardDescription>
@@ -92,7 +92,7 @@ export default function LoginPage() {
                   onClick={() => setShowPw(!showPw)}
                   className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
                 >
-                  {showPw ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                  {showPw ? <Icon name={icons.EyeOff} className="w-4 h-4" /> : <Icon name={icons.Eye} className="w-4 h-4" />}
                 </button>
               </div>
             </div>

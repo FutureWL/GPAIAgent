@@ -3,6 +3,7 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import { toast } from 'sonner';
 import { MessageSquare, Trash2 } from 'lucide-react';
+import { Icon, icons } from '@/components/ui/icon';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import {
@@ -108,7 +109,7 @@ export default function CommentsPage() {
                     <TableCell className="font-mono text-xs">{c.id}</TableCell>
                     <TableCell>
                       <div className="flex items-start gap-2">
-                        <MessageSquare className="h-4 w-4 text-muted-foreground mt-0.5 shrink-0" />
+                        <Icon name={icons.MessageSquare} className="h-4 w-4 text-muted-foreground mt-0.5 shrink-0" />
                         <span className="text-sm line-clamp-2">{c.content}</span>
                       </div>
                     </TableCell>
@@ -124,7 +125,7 @@ export default function CommentsPage() {
                         className="h-8 w-8 text-red-600 hover:text-red-700"
                         onClick={() => handleDelete(c.id)}
                       >
-                        <Trash2 className="h-4 w-4" />
+                        <Icon name={icons.Trash2} className="h-4 w-4" />
                       </Button>
                     </TableCell>
                   </TableRow>

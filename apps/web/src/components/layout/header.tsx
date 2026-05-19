@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { useTheme } from 'next-themes';
-import { Globe, Sun, Moon, Monitor, User, Settings, LayoutDashboard, LogOut } from 'lucide-react';
+import { Icon, icons } from '@/components/ui/icon';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -43,9 +43,9 @@ const MEMBERSHIP_BADGE_VARIANTS: Record<string, 'default' | 'secondary'> = {
 };
 
 const THEME_OPTIONS = [
-  { key: 'light', labelZh: '亮色', labelEn: 'Light', icon: Sun },
-  { key: 'dark', labelZh: '暗色', labelEn: 'Dark', icon: Moon },
-  { key: 'system', labelZh: '跟随系统', labelEn: 'System', icon: Monitor },
+  { key: 'light', labelZh: '亮色', labelEn: 'Light', iconName: 'Sun' as const },
+  { key: 'dark', labelZh: '暗色', labelEn: 'Dark', iconName: 'Moon' as const },
+  { key: 'system', labelZh: '跟随系统', labelEn: 'System', iconName: 'Monitor' as const },
 ];
 
 export default function Header({ locale, me }: HeaderProps) {
@@ -81,7 +81,7 @@ export default function Header({ locale, me }: HeaderProps) {
   return (
     <header className="h-14 flex items-center justify-between px-6 border-b bg-card flex-shrink-0">
       <div className="flex items-center gap-3">
-        {/* Logo */}
+        {/* Logo — inline SVG preserved for precise stroke control */}
         <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24"
           fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"
           strokeLinejoin="round" className="lucide lucide-trending-up w-5 h-5 text-primary">
@@ -108,7 +108,7 @@ export default function Header({ locale, me }: HeaderProps) {
             onClick={() => switchLocale('zh')}
             className={`h-7 px-2 text-xs ${locale === 'zh' ? 'bg-primary/10 text-primary' : 'text-muted-foreground'}`}
           >
-            <Globe className="w-3 h-3 mr-1" />
+            <Icon name={icons.Globe} className="w-3 h-3 mr-1" />
             中文
           </Button>
           <Button
@@ -117,7 +117,7 @@ export default function Header({ locale, me }: HeaderProps) {
             onClick={() => switchLocale('en')}
             className={`h-7 px-2 text-xs ${locale === 'en' ? 'bg-primary/10 text-primary' : 'text-muted-foreground'}`}
           >
-            <Globe className="w-3 h-3 mr-1" />
+            <Icon name={icons.Globe} className="w-3 h-3 mr-1" />
             EN
           </Button>
         </div>
@@ -125,7 +125,6 @@ export default function Header({ locale, me }: HeaderProps) {
         {/* Theme switcher */}
         <div className="flex items-center gap-1 border rounded-md p-0.5">
           {THEME_OPTIONS.map((opt) => {
-            const Icon = opt.icon;
             const label = isZh ? opt.labelZh : opt.labelEn;
             return (
               <Button
@@ -136,7 +135,7 @@ export default function Header({ locale, me }: HeaderProps) {
                 onClick={() => setTheme(opt.key)}
                 className={`h-7 w-8 p-0 flex items-center justify-center ${theme === opt.key ? 'bg-primary/10 text-primary' : 'text-muted-foreground hover:text-foreground'}`}
               >
-                <Icon className="w-3.5 h-3.5" />
+                <Icon name={opt.iconName} className="w-3.5 h-3.5" />
               </Button>
             );
           })}
@@ -196,7 +195,7 @@ export default function Header({ locale, me }: HeaderProps) {
                   </div>
                   <Button variant="ghost" size="sm" className="h-7 text-xs" asChild>
                     <Link href={`/${locale}/settings`}>
-                      <Settings className="w-3 h-3 mr-1" />
+                      <Icon name={icons.Settings} className="w-3 h-3 mr-1" />
                       {isZh ? '编辑' : 'Edit'}
                     </Link>
                   </Button>
@@ -207,19 +206,19 @@ export default function Header({ locale, me }: HeaderProps) {
 
               <DropdownMenuItem asChild>
                 <Link href={`/${locale}/profile`} className="flex items-center gap-2 cursor-pointer">
-                  <User className="w-4 h-4" />
+                  <Icon name={icons.User} className="w-4 h-4" />
                   {isZh ? '个人主页' : 'Profile'}
                 </Link>
               </DropdownMenuItem>
               <DropdownMenuItem asChild>
                 <Link href={`/${locale}/settings`} className="flex items-center gap-2 cursor-pointer">
-                  <Settings className="w-4 h-4" />
+                  <Icon name={icons.Settings} className="w-4 h-4" />
                   {isZh ? '账户设置' : 'Settings'}
                 </Link>
               </DropdownMenuItem>
               <DropdownMenuItem asChild>
                 <Link href={`/${locale}/admin`} className="flex items-center gap-2 cursor-pointer">
-                  <LayoutDashboard className="w-4 h-4" />
+                  <Icon name={icons.LayoutDashboard} className="w-4 h-4" />
                   {isZh ? '管理后台' : 'Admin'}
                 </Link>
               </DropdownMenuItem>
@@ -227,7 +226,7 @@ export default function Header({ locale, me }: HeaderProps) {
               <DropdownMenuSeparator />
 
               <DropdownMenuItem onClick={handleLogout} className="text-destructive focus:text-destructive cursor-pointer">
-                <LogOut className="w-4 h-4 mr-2" />
+                <Icon name={icons.LogOut} className="w-4 h-4 mr-2" />
                 {isZh ? '退出登录' : 'Sign Out'}
               </DropdownMenuItem>
             </DropdownMenuContent>

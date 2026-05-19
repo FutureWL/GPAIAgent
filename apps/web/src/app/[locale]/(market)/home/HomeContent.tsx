@@ -3,7 +3,8 @@
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { Star, Crown, BarChart3, TrendingUp, Newspaper, Zap, ArrowRight } from 'lucide-react';
+import { Star, Crown, TrendingUp, Newspaper, Zap, ArrowRight } from 'lucide-react';
+import { Icon, icons } from '@/components/ui/icon';
 
 type StockItem = {
   code: string;
@@ -51,7 +52,7 @@ export default function HomeContent({ username, locale = 'zh' }: HomeContentProp
       <div className="bg-gradient-to-r from-blue-900 via-blue-800 to-indigo-900 rounded-2xl p-8 text-white relative overflow-hidden">
         <div className="relative z-10">
           <div className="flex items-center gap-2 mb-2">
-            <Zap className="w-5 h-5 text-yellow-300" />
+            <Icon name={icons.Zap} className="w-5 h-5 text-yellow-300" />
             <span className="text-sm text-blue-200">GPAI 智能炒股助手</span>
           </div>
           <h1 className="text-3xl font-bold mb-2">
@@ -76,9 +77,9 @@ export default function HomeContent({ username, locale = 'zh' }: HomeContentProp
         >
           <div className="flex items-center justify-between mb-3">
             <div className="w-10 h-10 rounded-lg bg-yellow-500/10 flex items-center justify-center">
-              <Star className="w-5 h-5 text-yellow-500" />
+              <Icon name={icons.Star} className="w-5 h-5 text-yellow-500" />
             </div>
-            <ArrowRight className="w-4 h-4 text-muted-foreground group-hover:text-primary transition-colors" />
+            <Icon name={icons.ArrowRight} className="w-4 h-4 text-muted-foreground group-hover:text-primary transition-colors" />
           </div>
           <div className="font-semibold mb-1">{locale === 'zh' ? '我的自选' : 'My Watchlist'}</div>
           <div className="text-xs text-muted-foreground">{locale === 'zh' ? '关注股票实时行情' : 'Track stocks in real-time'}</div>
@@ -90,9 +91,9 @@ export default function HomeContent({ username, locale = 'zh' }: HomeContentProp
         >
           <div className="flex items-center justify-between mb-3">
             <div className="w-10 h-10 rounded-lg bg-purple-500/10 flex items-center justify-center">
-              <Crown className="w-5 h-5 text-purple-500" />
+              <Icon name={icons.Crown} className="w-5 h-5 text-purple-500" />
             </div>
-            <ArrowRight className="w-4 h-4 text-muted-foreground group-hover:text-primary transition-colors" />
+            <Icon name={icons.ArrowRight} className="w-4 h-4 text-muted-foreground group-hover:text-primary transition-colors" />
           </div>
           <div className="font-semibold mb-1">{locale === 'zh' ? '会员中心' : 'Membership'}</div>
           <div className="text-xs text-muted-foreground">{locale === 'zh' ? '解锁 AI 分析特权' : 'Unlock AI analysis features'}</div>
@@ -104,9 +105,9 @@ export default function HomeContent({ username, locale = 'zh' }: HomeContentProp
         >
           <div className="flex items-center justify-between mb-3">
             <div className="w-10 h-10 rounded-lg bg-green-500/10 flex items-center justify-center">
-              <BarChart3 className="w-5 h-5 text-green-500" />
+              <Icon name={icons.ChartBarBig} className="w-5 h-5 text-green-500" />
             </div>
-            <ArrowRight className="w-4 h-4 text-muted-foreground group-hover:text-primary transition-colors" />
+            <Icon name={icons.ArrowRight} className="w-4 h-4 text-muted-foreground group-hover:text-primary transition-colors" />
           </div>
           <div className="font-semibold mb-1">{locale === 'zh' ? '策略广场' : 'Strategy Hub'}</div>
           <div className="text-xs text-muted-foreground">{locale === 'zh' ? '浏览 & 分享交易策略' : 'Browse & share trading strategies'}</div>
@@ -119,7 +120,7 @@ export default function HomeContent({ username, locale = 'zh' }: HomeContentProp
         <div className="col-span-2 bg-card border border-border rounded-xl overflow-hidden">
           <div className="px-5 py-4 border-b border-border flex items-center justify-between">
             <div className="flex items-center gap-2">
-              <TrendingUp className="w-4 h-4 text-primary" />
+              <Icon name={icons.TrendingUp} className="w-4 h-4 text-primary" />
               <h2 className="font-semibold text-sm">{locale === 'zh' ? '热门股票' : 'Hot Stocks'}</h2>
             </div>
             <Link href={`${localePrefix}/market`} className="text-xs text-primary hover:underline">
@@ -187,7 +188,7 @@ export default function HomeContent({ username, locale = 'zh' }: HomeContentProp
         {/* News / Announcements */}
         <div className="bg-card border border-border rounded-xl overflow-hidden">
           <div className="px-5 py-4 border-b border-border flex items-center gap-2">
-            <Newspaper className="w-4 h-4 text-primary" />
+            <Icon name={icons.Newspaper} className="w-4 h-4 text-primary" />
             <h2 className="font-semibold text-sm">{locale === 'zh' ? '最新资讯' : 'Latest News'}</h2>
           </div>
           <div className="p-4 space-y-3">

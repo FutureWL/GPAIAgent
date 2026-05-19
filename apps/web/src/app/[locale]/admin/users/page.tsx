@@ -2,7 +2,7 @@
 
 import React, { useEffect, useState, useCallback } from 'react';
 import { toast } from 'sonner';
-import { UserCheck, UserX, ShieldCheck, User } from 'lucide-react';
+import { Icon, icons } from '@/components/ui/icon';
 import {
   Table,
   TableBody,
@@ -153,7 +153,7 @@ export default function UsersPage() {
                     <TableCell className="font-mono text-xs">{user.id}</TableCell>
                     <TableCell>
                       <div className="flex items-center gap-2">
-                        <User className="h-4 w-4 text-muted-foreground" />
+                        <Icon name={icons.User} className="h-4 w-4 text-muted-foreground" />
                         {user.username}
                       </div>
                     </TableCell>
@@ -181,12 +181,12 @@ export default function UsersPage() {
                     <TableCell>
                       {user.disabled ? (
                         <Badge variant="destructive" className="gap-1">
-                          <UserX className="h-3 w-3" />
+                          <Icon name={icons.UserX} className="h-3 w-3" />
                           已禁用
                         </Badge>
                       ) : (
                         <Badge className="gap-1 bg-green-600 hover:bg-green-600">
-                          <UserCheck className="h-3 w-3" />
+                          <Icon name={icons.UserCheck} className="h-3 w-3" />
                           正常
                         </Badge>
                       )}
@@ -204,11 +204,11 @@ export default function UsersPage() {
                       >
                         {user.disabled ? (
                           <>
-                            <UserCheck className="h-3 w-3" /> 启用
+                            <Icon name={icons.UserCheck} className="h-3 w-3" /> 启用
                           </>
                         ) : (
                           <>
-                            <UserX className="h-3 w-3" /> 禁用
+                            <Icon name={icons.UserX} className="h-3 w-3" /> 禁用
                           </>
                         )}
                       </Button>

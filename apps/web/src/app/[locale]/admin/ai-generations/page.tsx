@@ -3,6 +3,7 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import { toast } from 'sonner';
 import { BotMessageSquare, FileText } from 'lucide-react';
+import { Icon, icons } from '@/components/ui/icon';
 import { Card, CardContent } from '@/components/ui/card';
 import {
   Table,
@@ -94,7 +95,7 @@ export default function AiGenerationsPage() {
                     <TableCell className="font-mono text-xs">{r.id}</TableCell>
                     <TableCell>
                       <div className="flex items-center gap-2">
-                        <BotMessageSquare className="h-4 w-4 text-muted-foreground" />
+                        <Icon name={icons.BotMessageSquare} className="h-4 w-4 text-muted-foreground" />
                         <span className="text-sm font-medium">{r.type}</span>
                       </div>
                     </TableCell>

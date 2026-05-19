@@ -3,6 +3,7 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import { toast } from 'sonner';
 import { TrendingUp, RefreshCw, Database } from 'lucide-react';
+import { Icon, icons } from '@/components/ui/icon';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import {
@@ -88,7 +89,7 @@ export default function StocksPage() {
           disabled={triggering}
           className="gap-1.5"
         >
-          <RefreshCw className={`h-4 w-4 ${triggering ? 'animate-spin' : ''}`} />
+          <Icon name={icons.RefreshCw} className={`h-4 w-4 ${triggering ? 'animate-spin' : ''}`} />
           {triggering ? '同步中...' : '触发全量同步'}
         </Button>
       </div>

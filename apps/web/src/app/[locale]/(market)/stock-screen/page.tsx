@@ -3,6 +3,7 @@
 import { useState, useCallback, useEffect } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
 import { Sparkles, Filter, Loader2, AlertCircle } from 'lucide-react';
+import { Icon, icons } from '@/components/ui/icon';
 import { apiFetch } from '@/lib/api';
 import { fmtCap, fmtAmount } from '@/lib/stock-utils';
 
@@ -129,11 +130,11 @@ export default function StockScreenPage() {
       <div className="flex gap-1 bg-slate-800/50 p-1 rounded-lg w-fit">
         <button onClick={() => { setTab('criteria'); setSearched(false); setResults([]); setAiResult(null); }}
           className={`flex items-center gap-1.5 px-4 py-2 rounded-md text-sm font-medium transition-colors ${tab === 'criteria' ? 'bg-blue-600 text-white' : 'text-slate-400 hover:text-white'}`}>
-          <Filter size={15} />条件选股
+          <Icon name={icons.Filter} size={15} />条件选股
         </button>
         <button onClick={() => { setTab('ai'); setSearched(false); setResults([]); setAiResult(null); }}
           className={`flex items-center gap-1.5 px-4 py-2 rounded-md text-sm font-medium transition-colors ${tab === 'ai' ? 'bg-blue-600 text-white' : 'text-slate-400 hover:text-white'}`}>
-          <Sparkles size={15} />AI 选股<span className="bg-purple-500 text-white text-[10px] px-1.5 py-0.5 rounded">会员</span>
+          <Icon name={icons.Sparkles} size={15} />AI 选股<span className="bg-purple-500 text-white text-[10px] px-1.5 py-0.5 rounded">会员</span>
         </button>
       </div>
       {tab === 'criteria' ? (
@@ -177,13 +178,13 @@ export default function StockScreenPage() {
             <div className="mt-4 flex gap-3">
               <button onClick={handleScreen} disabled={loading}
                 className="bg-blue-600 hover:bg-blue-500 disabled:bg-blue-800 disabled:cursor-not-allowed text-white rounded-lg px-5 py-2 text-sm flex items-center gap-2">
-                {loading ? <Loader2 size={15} className="animate-spin" /> : <Filter size={15} />}
+                {loading ? <Icon name={icons.Loader} size={15} className="animate-spin" /> : <Icon name={icons.Filter} size={15} />}
                 {loading ? '筛选中...' : '开始筛选'}
               </button>
             </div>
           </div>
           {loading ? (
-            <div className="text-center py-12 text-slate-400 text-sm"><Loader2 size={24} className="animate-spin mx-auto mb-2" />筛选中...</div>
+            <div className="text-center py-12 text-slate-400 text-sm"><Icon name={icons.Loader} size={24} className="animate-spin mx-auto mb-2" />筛选中...</div>
           ) : results.length > 0 ? (
             <div className="bg-slate-800/50 border border-slate-700 rounded-xl overflow-hidden">
               <div className="px-4 py-3 border-b border-slate-700 flex items-center justify-between">
@@ -253,7 +254,7 @@ export default function StockScreenPage() {
         <>
           <div className="bg-slate-800 border border-slate-700 rounded-xl p-4">
             <div className="text-sm font-medium mb-3 flex items-center gap-2">
-              <Sparkles size={15} className="text-purple-400" />描述您的选股偏好
+              <Icon name={icons.Sparkles} size={15} className="text-purple-400" />描述您的选股偏好
               <span className="bg-purple-500 text-white text-[10px] px-1.5 py-0.5 rounded ml-1">会员专享</span>
             </div>
             <textarea value={aiPrompt} onChange={(e) => setAiPrompt(e.target.value)}
@@ -262,7 +263,7 @@ export default function StockScreenPage() {
             <div className="mt-3 flex gap-3">
               <button onClick={handleAiScreen} disabled={aiLoading || !aiPrompt.trim()}
                 className="bg-purple-600 hover:bg-purple-500 disabled:bg-purple-900 disabled:cursor-not-allowed text-white rounded-lg px-5 py-2 text-sm flex items-center gap-2">
-                {aiLoading ? <Loader2 size={15} className="animate-spin" /> : <Sparkles size={15} />}
+                {aiLoading ? <Icon name={icons.Loader} size={15} className="animate-spin" /> : <Icon name={icons.Sparkles} size={15} />}
                 {aiLoading ? 'AI 选股中...' : 'AI 选股'}
               </button>
             </div>
@@ -274,14 +275,14 @@ export default function StockScreenPage() {
           )}
           {aiError && (
             <div className="bg-red-900/20 border border-red-800 rounded-xl p-4 text-sm text-red-300 flex items-center gap-2">
-              <AlertCircle size={15} />{aiError}
+              <Icon name={icons.AlertCircle} size={15} />{aiError}
             </div>
           )}
           {aiResult && (
             <div className="bg-slate-800/50 border border-slate-700 rounded-xl p-4">
               <div className="flex items-center justify-between mb-3">
                 <h2 className="font-semibold text-sm flex items-center gap-2">
-                  <Sparkles size={15} className="text-purple-400" />AI 选股结果
+                  <Icon name={icons.Sparkles} size={15} className="text-purple-400" />AI 选股结果
                 </h2>
                 {aiRiskLabel && (
                   <span className={`text-xs px-2 py-0.5 rounded ${aiRiskLabel.includes('收益') ? 'bg-green-900/50 text-green-400' : aiRiskLabel.includes('风险') ? 'bg-red-900/50 text-red-400' : aiRiskLabel.includes('可买') ? 'bg-yellow-900/50 text-yellow-400' : 'bg-slate-700 text-slate-400'}`}>{aiRiskLabel}</span>

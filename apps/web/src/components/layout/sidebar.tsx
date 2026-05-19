@@ -3,19 +3,8 @@
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useState } from 'react';
-import {
-  LayoutDashboard,
-  FileText,
-  Star,
-  LineChart,
-  BarChart2,
-  Crown,
-  ChevronLeft,
-  ChevronRight,
-  Settings,
-  User as UserSwitch,
-  Search,
-} from 'lucide-react';
+import { Icon, icons } from '@/components/ui/icon';
+import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 
@@ -38,13 +27,13 @@ interface SidebarProps {
 }
 
 const NAV_ITEMS = [
-  { key: 'home', labelZh: '首页', labelEn: 'Home', href: '/home', icon: LayoutDashboard },
-  { key: 'blog', labelZh: '博客', labelEn: 'Blog', href: '/blog', icon: FileText },
-  { key: 'watchlist', labelZh: '自选股', labelEn: 'Watchlist', href: '/watchlist', icon: Star },
-  { key: 'stock-screen', labelZh: '选股', labelEn: 'Stock Screen', href: '/stock-screen', icon: Search },
-  { key: 'market', labelZh: '行情', labelEn: 'Market', href: '/market', icon: LineChart },
-  { key: 'strategies', labelZh: '策略广场', labelEn: 'Strategies', href: '/strategies', icon: BarChart2 },
-  { key: 'membership', labelZh: '会员中心', labelEn: 'Membership', href: '/membership', icon: Crown },
+  { key: 'home', labelZh: '首页', labelEn: 'Home', href: '/home', icon: 'LayoutDashboard' as const },
+  { key: 'blog', labelZh: '博客', labelEn: 'Blog', href: '/blog', icon: 'FileText' as const },
+  { key: 'watchlist', labelZh: '自选股', labelEn: 'Watchlist', href: '/watchlist', icon: 'Star' as const },
+  { key: 'stock-screen', labelZh: '选股', labelEn: 'Stock Screen', href: '/stock-screen', icon: 'Search' as const },
+  { key: 'market', labelZh: '行情', labelEn: 'Market', href: '/market', icon: 'ChartLine' as const },
+  { key: 'strategies', labelZh: '策略广场', labelEn: 'Strategies', href: '/strategies', icon: 'ChartBarBig' as const },
+  { key: 'membership', labelZh: '会员中心', labelEn: 'Membership', href: '/membership', icon: 'Crown' as const },
 ];
 
 const MEMBERSHIP_LABELS_ZH: Record<string, string> = { NORMAL: '普通会员', PRIVATE: '私人会员' };
@@ -74,24 +63,22 @@ export default function Sidebar({ locale, me }: SidebarProps) {
     >
       {/* Navigation */}
       <nav className="flex-1 overflow-y-auto py-3 px-2">
-        {NAV_ITEMS.map((item) => {
-          const Icon = item.icon;
-          const label = isZh ? item.labelZh : item.labelEn;
-          return (
-            <Link
-              key={item.key}
-              href={`/${locale}${item.href}`}
-              className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm transition-colors mb-0.5 ${
-                isActive(item.href)
-                  ? 'bg-primary/10 text-primary font-medium'
-                  : 'text-muted-foreground hover:bg-accent hover:text-accent-foreground'
-              }`}
-            >
-              <span className="flex-shrink-0"><Icon size={18} /></span>
-              {!collapsed && <span>{label}</span>}
-            </Link>
-          );
-        })}
+        {NAV_ITEMS.map((item) => (
+          <Link
+            key={item.key}
+            href={`/${locale}${item.href}`}
+            className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm transition-colors mb-0.5 ${
+              isActive(item.href)
+                ? 'bg-primary/10 text-primary font-medium'
+                : 'text-muted-foreground hover:bg-accent hover:text-accent-foreground'
+            }`}
+          >
+            <span className="flex-shrink-0">
+              <Icon name={item.icon} className="w-[18px] h-[18px]" />
+            </span>
+            {!collapsed && <span>{isZh ? item.labelZh : item.labelEn}</span>}
+          </Link>
+        ))}
 
         {/* Login hint when not logged in */}
         {!me && !collapsed && (
@@ -112,7 +99,7 @@ export default function Sidebar({ locale, me }: SidebarProps) {
                 : 'text-muted-foreground hover:bg-accent hover:text-accent-foreground'
             }`}
           >
-            <UserSwitch size={18} className="flex-shrink-0" />
+            <span className="flex-shrink-0"><Icon name={icons.User} className="w-[18px] h-[18px]" /></span>
             {!collapsed && <span>{isZh ? '个人主页' : 'Profile'}</span>}
           </Link>
           <Link
@@ -123,13 +110,17 @@ export default function Sidebar({ locale, me }: SidebarProps) {
                 : 'text-muted-foreground hover:bg-accent hover:text-accent-foreground'
             }`}
           >
-            <Settings size={18} className="flex-shrink-0" />
+            <span className="flex-shrink-0"><Icon name={icons.Settings} className="w-[18px] h-[18px]" /></span>
             {!collapsed && <span>{isZh ? '账户设置' : 'Settings'}</span>}
           </Link>
 
           {/* User card */}
           <div className={`flex items-center gap-2 mt-2 ${collapsed ? 'justify-center' : ''}`}>
-            <Link href={`/${locale}/profile`} className="flex-shrink-0" title={collapsed ? `${displayName} (@${me.username})` : undefined}>
+            <Link
+              href={`/${locale}/profile`}
+              className="flex-shrink-0"
+              title={collapsed ? `${displayName} (@${me.username})` : undefined}
+            >
               <Avatar className="h-9 w-9">
                 <AvatarImage src={me.avatar ?? undefined} />
                 <AvatarFallback className="bg-primary text-primary-foreground text-sm">
@@ -155,15 +146,17 @@ export default function Sidebar({ locale, me }: SidebarProps) {
         </div>
       )}
 
-      {/* Collapse button */}
+      {/* Collapse button — uses ChevronLeft/Right directly from lucide (no wrapper needed) */}
       <div className={`p-3 border-t border-border ${collapsed ? 'flex justify-center' : ''}`}>
         <button
           onClick={() => setCollapsed(!collapsed)}
           className="inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium transition-colors hover:bg-accent hover:text-accent-foreground h-10 w-10 flex-shrink-0"
           title={isZh ? (collapsed ? '展开' : '收起') : (collapsed ? 'Expand' : 'Collapse')}
         >
-          {collapsed ? <ChevronRight size={16} /> : <ChevronLeft size={16} />}
-          {!collapsed && <span className="text-xs">{isZh ? '收起' : 'Collapse'}</span>}
+          {collapsed
+            ? <ChevronRight size={16} />
+            : <><ChevronLeft size={16} /><span className="text-xs">{isZh ? '收起' : 'Collapse'}</span></>
+          }
         </button>
       </div>
     </aside>

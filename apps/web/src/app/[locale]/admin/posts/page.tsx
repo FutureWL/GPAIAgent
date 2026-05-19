@@ -3,6 +3,7 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import { toast } from 'sonner';
 import { CheckCircle, XCircle, Eye, FileText } from 'lucide-react';
+import { Icon, icons } from '@/components/ui/icon';
 import {
   Table,
   TableBody,
@@ -152,7 +153,7 @@ export default function PostsPage() {
                       <TableCell className="font-mono text-xs">{post.id}</TableCell>
                       <TableCell>
                         <div className="flex items-center gap-2">
-                          <FileText className="h-4 w-4 text-muted-foreground shrink-0" />
+                          <Icon name={icons.FileText} className="h-4 w-4 text-muted-foreground shrink-0" />
                           <span className="font-medium text-sm line-clamp-1">{post.title}</span>
                         </div>
                       </TableCell>
@@ -175,7 +176,7 @@ export default function PostsPage() {
                             className="h-8 w-8"
                             onClick={() => setPreviewPost(post)}
                           >
-                            <Eye className="h-4 w-4" />
+                            <Icon name={icons.Eye} className="h-4 w-4" />
                           </Button>
                           {post.status === 'pending_review' && (
                             <>
@@ -186,7 +187,7 @@ export default function PostsPage() {
                                 disabled={actingId === post.id}
                                 onClick={() => handleReview(post.id, 'approve')}
                               >
-                                <CheckCircle className="h-4 w-4" />
+                                <Icon name={icons.CheckCircle} className="h-4 w-4" />
                               </Button>
                               <Button
                                 variant="ghost"
@@ -195,7 +196,7 @@ export default function PostsPage() {
                                 disabled={actingId === post.id}
                                 onClick={() => handleReview(post.id, 'reject')}
                               >
-                                <XCircle className="h-4 w-4" />
+                                <Icon name={icons.XCircle} className="h-4 w-4" />
                               </Button>
                             </>
                           )}

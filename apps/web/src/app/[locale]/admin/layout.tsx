@@ -16,6 +16,7 @@ import {
   LogOut,
   ShieldCheck,
 } from 'lucide-react';
+import { Icon, icons } from '@/components/ui/icon';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 
@@ -50,7 +51,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
       >
         {/* Logo */}
         <div className="flex items-center h-14 border-b border-border px-3">
-          <ShieldCheck className="h-5 w-5 text-primary shrink-0" />
+          <Icon name={icons.ShieldCheck} className="h-5 w-5 text-primary shrink-0" />
           {!collapsed && (
             <span className="ml-2 text-sm font-bold tracking-wide text-foreground">
               GPAI 管理后台
@@ -91,9 +92,9 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
             onClick={() => setCollapsed(!collapsed)}
           >
             {collapsed ? (
-              <ChevronRight className="h-4 w-4" />
+              <Icon name={icons.ChevronRight} className="h-4 w-4" />
             ) : (
-              <ChevronLeft className="h-4 w-4" />
+              <Icon name={icons.ChevronLeft} className="h-4 w-4" />
             )}
           </Button>
         </div>

@@ -9,8 +9,8 @@ import {
   BotMessageSquare,
   Clock,
   AlertCircle,
-  CheckCircle2,
 } from 'lucide-react';
+import { Icon, icons } from '@/components/ui/icon';
 import {
   Table,
   TableBody,
@@ -159,7 +159,7 @@ export default function AdminDashboardPage() {
                 </div>
               </div>
               <div className="flex items-center gap-3 p-3 rounded-lg border border-border bg-card">
-                <CheckCircle2 className="h-4 w-4 text-green-600" />
+                  <Icon name={icons.CheckCircle} className="w-4 h-4 text-green-500" />
                 <div>
                   <p className="text-sm font-medium">近 24h 同步任务</p>
                   <p className="text-2xl font-bold">{stats.syncJobsRecent}</p>
@@ -190,7 +190,7 @@ export default function AdminDashboardPage() {
               href="/zh/admin/posts"
               className="flex items-center gap-2 p-3 rounded-lg border border-border hover:bg-accent transition-colors text-sm"
             >
-              <FileText className="h-4 w-4 text-muted-foreground" />
+              <Icon name={icons.FileText} className="h-4 w-4 text-muted-foreground" />
               博客审核
               {stats && stats.pendingPosts > 0 && (
                 <span className="ml-auto bg-orange-500 text-white text-xs font-bold px-1.5 py-0.5 rounded-full">
@@ -202,7 +202,7 @@ export default function AdminDashboardPage() {
               href="/zh/admin/stocks"
               className="flex items-center gap-2 p-3 rounded-lg border border-border hover:bg-accent transition-colors text-sm"
             >
-              <TrendingUp className="h-4 w-4 text-muted-foreground" />
+              <Icon name={icons.TrendingUp} className="h-4 w-4 text-muted-foreground" />
               股票管理
             </a>
           </div>
