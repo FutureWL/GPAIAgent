@@ -1,5 +1,5 @@
 import { Test, TestingModule } from '@nestjs/testing';
-import { StocksService, RealTimeQuote } from '../stocks.service';
+import { StocksService } from '../stocks.service';
 import { PrismaService } from '../../prisma/prisma.service';
 import { NotFoundException } from '@nestjs/common';
 
@@ -9,7 +9,6 @@ global.fetch = mockFetch;
 
 describe('StocksService', () => {
   let service: StocksService;
-  let prisma: PrismaService;
 
   const mockStock = {
     id: 'stock-001',
@@ -49,7 +48,6 @@ describe('StocksService', () => {
     }).compile();
 
     service = module.get<StocksService>(StocksService);
-    prisma = module.get<PrismaService>(PrismaService);
   });
 
   describe('getRealtimeQuote', () => {

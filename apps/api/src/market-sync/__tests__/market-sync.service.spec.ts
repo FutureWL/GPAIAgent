@@ -1,7 +1,7 @@
 import { Test, TestingModule } from '@nestjs/testing';
-import { MarketSyncService, QuoteSnapshot, KBar } from '../market-sync.service';
+import { MarketSyncService } from '../market-sync.service';
 import { PrismaService } from '../../prisma/prisma.service';
-import { SyncTaskType, SyncTaskStatus, SyncJobStatus } from '@prisma/client';
+import { SyncTaskType, SyncTaskStatus } from '@prisma/client';
 
 // Mock fetch globally
 const mockFetch = jest.fn();
@@ -9,7 +9,6 @@ global.fetch = mockFetch;
 
 describe('MarketSyncService', () => {
   let service: MarketSyncService;
-  let prisma: PrismaService;
 
   const mockStock = {
     id: 'stock-001',
@@ -46,7 +45,6 @@ describe('MarketSyncService', () => {
     }).compile();
 
     service = module.get<MarketSyncService>(MarketSyncService);
-    prisma = module.get<PrismaService>(PrismaService);
   });
 
   describe('syncOneQuote', () => {
