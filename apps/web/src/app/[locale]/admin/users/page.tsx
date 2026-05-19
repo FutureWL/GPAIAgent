@@ -23,12 +23,15 @@ import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 
 interface User {
-  id: number;
+  id: string;
   username: string;
+  name: string | null;
   email: string | null;
+  avatar: string | null;
   role: 'ADMIN' | 'USER';
   disabled: boolean;
   createdAt: string;
+  _count?: { posts: number; strategies: number };
 }
 
 const ROLE_OPTIONS = [
@@ -42,7 +45,7 @@ export default function UsersPage() {
   const [page, setPage] = useState(1);
   const [pageSize] = useState(20);
   const [total, setTotal] = useState(0);
-  const [changingId, setChangingId] = useState<number | null>(null);
+  const [changingId, setChangingId] = useState<string | null>(null);
 
   const fetchUsers = useCallback(async () => {
     setLoading(true);
@@ -66,7 +69,7 @@ export default function UsersPage() {
     fetchUsers();
   }, [fetchUsers]);
 
-  const handleRoleChange = async (userId: number, newRole: string) => {
+  const handleRoleChange = async (userId: string, newRole: string) => {
     setChangingId(userId);
     try {
       const res = await fetch(`http://localhost:3001/admin/users/${userId}/role`, {
@@ -88,7 +91,7 @@ export default function UsersPage() {
     }
   };
 
-  const handleToggleDisable = async (userId: number, currentDisabled: boolean) => {
+  const handleToggleDisable = async (userId: string, currentDisabled: boolean) => {
     setChangingId(userId);
     try {
       const res = await fetch(`http://localhost:3001/admin/users/${userId}/disable`, {

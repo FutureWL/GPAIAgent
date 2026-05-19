@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useMemo } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
 import { fmtCap, fmtAmount } from '@/lib/stock-utils';
 import { Input } from '@/components/ui/input';
@@ -24,15 +24,7 @@ type StockItem = {
   isIndex?: boolean;
 };
 
-const INDEX_CODES = [
-  'sh000001', 'sz399001', 'sz399006',
-];
-
-const INDEX_NAMES: Record<string, string> = {
-  'sh000001': '上证指数',
-  'sz399001': '深证成指',
-  'sz399006': '创业板指',
-};
+const INDEX_CODES = ['sh000001', 'sz399001', 'sz399006'];
 
 const STOCK_CODES = [
   'sh600519','sh600036','sh601318','sh600887','sh601888','sh600030','sh601857',
@@ -41,14 +33,15 @@ const STOCK_CODES = [
   'sh601088','sh601668','sh601186','sh601601','sh600028','sh601899','sh600837',
   'sh600999','sh600900','sh600438','sh601225','sh600893','sh601633','sh600760',
   'sh601169','sh600029','sh601991','sh601818','sh600745','sh603799','sh600132',
-  'sh600115','sh603259','sh688981','sh688599','sh601985','sh601816','sh600028',
-  'sh603288','sh600183','sh600588','sh601166','sh601818',
-  'sz000858','sz000333','sz002594','sz000001','sz000002','sz000651','sz000876',
-  'sz002415','sz002475','sz002714','sz000568','sz000725','sz000063','sz002230',
-  'sz002371','sz002460','sz002466','sz002497','sz002648','sz300750','sz300015',
-  'sz300059','sz300122','sz300124','sz300274','sz300760','sz300896','sz300999',
-  'sz301536','sz301587','sz000983','sz002352','sz300033','sz300408','sz300782',
-  'sz300014','sz300450','sz300012','sz300346','sz300529',
+  'sh600115','sh603259','sh688981','sh688599','sh601985','sh601816',
+  'sh603288','sh600183','sh600588','sz000858','sz000333','sz002594',
+  'sz000001','sz000002','sz000651','sz000876','sz002415','sz002475',
+  'sz002714','sz000568','sz000725','sz000063','sz002230','sz002371',
+  'sz002460','sz002466','sz002497','sz002648','sz300750','sz300015',
+  'sz300059','sz300122','sz300124','sz300274','sz300760','sz300896',
+  'sz300999','sz301536','sz301587','sz000983','sz002352','sz300033',
+  'sz300408','sz300782','sz300014','sz300450','sz300012','sz300346',
+  'sz300529',
 ];
 
 function parseTencentLine(raw: string): StockItem | null {
@@ -96,18 +89,21 @@ function StockRow({ s, locale }: { s: StockItem; locale: string }) {
   return (
     <tr
       className="border-b border-border hover:bg-accent/50 cursor-pointer transition-colors"
-      onClick={() => window.location.href = `/${locale}/stock/${s.code}`}
+      onClick={() => { window.location.href = `/${locale}/stock/${s.code}`; }}
     >
       <td className="px-3 py-2.5 text-xs text-muted-foreground font-mono">{s.code}</td>
       <td className="px-3 py-2.5 text-sm font-medium">{s.name}</td>
       <td className="px-3 py-2.5 text-right font-mono text-sm font-medium tabular-nums">
         {s.price > 0 ? s.price.toFixed(2) : '-'}
       </td>
-      <td className={`px-3 py-2.5 text-right font-mono text-sm tabular-nums ${up ? 'text-stock-up' : 'text-stock-down'}`}>
+      <td className={cn('px-3 py-2.5 text-right font-mono text-sm tabular-nums', up ? 'text-stock-up' : 'text-stock-down')}>
         {up ? '+' : ''}{s.change.toFixed(2)}
       </td>
       <td className="px-3 py-2.5 text-right">
-        <span className={`inline-flex items-center gap-0.5 text-xs font-mono tabular-nums px-1.5 py-0.5 rounded ${up ? 'bg-stock-up text-stock-up' : 'bg-stock-down text-stock-down'}`}>
+        <span className={cn(
+          'inline-flex items-center gap-0.5 text-xs font-mono tabular-nums px-1.5 py-0.5 rounded',
+          up ? 'bg-stock-up text-stock-up' : 'bg-stock-down text-stock-down'
+        )}>
           {up ? '▲' : '▼'} {Math.abs(s.changePercent).toFixed(2)}%
         </span>
       </td>
@@ -130,10 +126,10 @@ function IndexCard({ s }: { s: StockItem }) {
     <Card className="flex-1 min-w-[160px] hover:shadow-md transition-shadow">
       <CardContent className="p-4">
         <div className="text-xs text-muted-foreground mb-1">{s.name}</div>
-        <div className={`text-2xl font-bold font-mono tabular-nums ${up ? 'text-stock-up' : 'text-stock-down'}`}>
+        <div className={cn('text-2xl font-bold font-mono tabular-nums', up ? 'text-stock-up' : 'text-stock-down')}>
           {s.price > 0 ? s.price.toFixed(2) : '-'}
         </div>
-        <div className={`text-sm font-mono tabular-nums mt-1 ${up ? 'text-stock-up' : 'text-stock-down'}`}>
+        <div className={cn('text-sm font-mono tabular-nums mt-1', up ? 'text-stock-up' : 'text-stock-down')}>
           {up ? '+' : ''}{s.change.toFixed(2)} &nbsp; {up ? '+' : ''}{Math.abs(s.changePercent).toFixed(2)}%
         </div>
       </CardContent>
@@ -141,14 +137,90 @@ function IndexCard({ s }: { s: StockItem }) {
   );
 }
 
+function PaginationControls({
+  currentPage, totalPages, onPageChange,
+}: {
+  currentPage: number;
+  totalPages: number;
+  onPageChange: (page: number) => void;
+}) {
+  if (totalPages <= 1) return null;
+
+  const pages: (number | '...')[] = [];
+  if (totalPages <= 7) {
+    for (let i = 1; i <= totalPages; i++) pages.push(i);
+  } else {
+    pages.push(1);
+    if (currentPage > 3) pages.push('...');
+    for (let i = Math.max(2, currentPage - 1); i <= Math.min(totalPages - 1, currentPage + 1); i++) {
+      pages.push(i);
+    }
+    if (currentPage < totalPages - 2) pages.push('...');
+    pages.push(totalPages);
+  }
+
+  return (
+    <div className="flex items-center gap-1 mt-4 px-4 pb-4">
+      <div className="flex items-center gap-1 ml-auto">
+        {/* First */}
+        <Button
+          variant="ghost" size="icon" className="h-7 w-7"
+          onClick={() => onPageChange(1)} disabled={currentPage === 1}
+        >
+          <span className="text-xs font-bold">«</span>
+        </Button>
+        {/* Prev */}
+        <Button
+          variant="ghost" size="icon" className="h-7 w-7"
+          onClick={() => onPageChange(currentPage - 1)} disabled={currentPage === 1}
+        >
+          <span className="text-xs font-bold">‹</span>
+        </Button>
+
+        {pages.map((p, i) =>
+          p === '...' ? (
+            <span key={`ellipsis-${i}`} className="px-1 text-muted-foreground text-xs">…</span>
+          ) : (
+            <Button
+              key={p}
+              variant={p === currentPage ? 'default' : 'ghost'}
+              size="icon" className="h-7 w-7 text-xs"
+              onClick={() => onPageChange(p as number)}
+            >
+              {p}
+            </Button>
+          )
+        )}
+
+        {/* Next */}
+        <Button
+          variant="ghost" size="icon" className="h-7 w-7"
+          onClick={() => onPageChange(currentPage + 1)} disabled={currentPage === totalPages}
+        >
+          <span className="text-xs font-bold">›</span>
+        </Button>
+        {/* Last */}
+        <Button
+          variant="ghost" size="icon" className="h-7 w-7"
+          onClick={() => onPageChange(totalPages)} disabled={currentPage === totalPages}
+        >
+          <span className="text-xs font-bold">»</span>
+        </Button>
+      </div>
+    </div>
+  );
+}
+
+const PAGE_SIZE_OPTIONS = [20, 50, 100];
+
 export default function MarketPage() {
-  const router = useRouter();
   const pathname = usePathname();
   const locale = pathname.split('/')[1] || 'zh';
   const [allStocks, setAllStocks] = useState<StockItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
-  const [displayedStocks, setDisplayedStocks] = useState<StockItem[]>([]);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pageSize, setPageSize] = useState(20);
 
   const fetchMarket = useCallback(async () => {
     setLoading(true);
@@ -178,22 +250,32 @@ export default function MarketPage() {
 
   useEffect(() => { fetchMarket(); }, [fetchMarket]);
 
-  useEffect(() => {
-    if (!search.trim()) {
-      setDisplayedStocks(allStocks.filter(s => !s.isIndex).slice(0, 100));
-    } else {
-      const q = search.toUpperCase();
-      setDisplayedStocks(
-        allStocks.filter((s) => s.code.includes(q) || s.name.includes(search)).slice(0, 100)
-      );
-    }
-  }, [search, allStocks]);
+  // Reset to page 1 when search or pageSize changes
+  useEffect(() => { setCurrentPage(1); }, [search, pageSize]);
 
-  const indexStocks = allStocks.filter(s => s.isIndex);
+  // Derived data
+  const nonIndexStocks = useMemo(() => allStocks.filter(s => !s.isIndex), [allStocks]);
+  const filteredStocks = useMemo(() => {
+    if (!search.trim()) return nonIndexStocks;
+    const q = search.trim().toUpperCase();
+    return nonIndexStocks.filter(s => s.code.includes(q) || s.name.includes(search.trim()));
+  }, [nonIndexStocks, search]);
+
+  const totalPages = Math.max(1, Math.ceil(filteredStocks.length / pageSize));
+  const safePage = Math.min(currentPage, totalPages);
+  const displayedStocks = useMemo(
+    () => filteredStocks.slice((safePage - 1) * pageSize, safePage * pageSize),
+    [filteredStocks, safePage, pageSize]
+  );
+
+  const indexStocks = useMemo(() => allStocks.filter(s => s.isIndex), [allStocks]);
   const isZh = locale === 'zh';
 
+  const startItem = filteredStocks.length === 0 ? 0 : (safePage - 1) * pageSize + 1;
+  const endItem = Math.min(safePage * pageSize, filteredStocks.length);
+
   return (
-    <div className="max-w-6xl mx-auto px-4 sm:px-6 py-6 space-y-6">
+    <div className="max-w-6xl mx-auto px-4 sm:px-6 py-6 space-y-4">
 
       {/* Hero header */}
       <div className="space-y-1">
@@ -201,10 +283,8 @@ export default function MarketPage() {
           {isZh ? '行情中心' : 'Market Center'}
         </h1>
         <p className="text-sm text-muted-foreground">
-          {isZh ? 'A股市场实时行情' : 'Real-time A-Share Market Data'} &nbsp;·&nbsp;
-          {allStocks.filter(s => !s.isIndex).length > 0 && (
-            <span>{allStocks.filter(s => !s.isIndex).length} {isZh ? '只股票' : 'stocks'}</span>
-          )}
+          {isZh ? 'A股市场实时行情' : 'Real-time A-Share Market Data'}
+          {nonIndexStocks.length > 0 && ` · ${nonIndexStocks.length} ${isZh ? '只股票' : 'stocks'}`}
         </p>
       </div>
 
@@ -216,7 +296,7 @@ export default function MarketPage() {
       )}
 
       {/* Search + actions */}
-      <div className="flex gap-3">
+      <div className="flex gap-3 items-center">
         <div className="relative flex-1 max-w-sm">
           <Icon name={icons.Search} className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
           <Input
@@ -227,11 +307,8 @@ export default function MarketPage() {
           />
         </div>
         <Button
-          variant="outline"
-          size="sm"
-          onClick={fetchMarket}
-          disabled={loading}
-          className="gap-1.5"
+          variant="outline" size="sm"
+          onClick={fetchMarket} disabled={loading} className="gap-1.5 shrink-0"
         >
           <Icon name={icons.RefreshCw} className={cn('h-3.5 w-3.5', loading && 'animate-spin')} />
           {isZh ? '刷新' : 'Refresh'}
@@ -245,12 +322,32 @@ export default function MarketPage() {
             <CardTitle className="text-sm font-medium">
               {isZh ? '全部股票' : 'All Stocks'}
             </CardTitle>
-            <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-              <span className="inline-block w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse" />
-              {loading ? (isZh ? '加载中...' : 'Loading...') : `${displayedStocks.length} ${isZh ? '只' : ''}`}
+            <div className="flex items-center gap-3">
+              {/* Page size selector */}
+              <div className="flex items-center gap-1">
+                {PAGE_SIZE_OPTIONS.map(ps => (
+                  <Button
+                    key={ps}
+                    variant={pageSize === ps ? 'secondary' : 'ghost'}
+                    size="sm" className="h-6 text-xs px-2"
+                    onClick={() => setPageSize(ps)}
+                  >
+                    {ps}
+                  </Button>
+                ))}
+              </div>
+              <div className="h-4 w-px bg-border" />
+              {/* Live indicator */}
+              <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                <span className="inline-block w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse" />
+                {loading ? (isZh ? '加载中...' : 'Loading...') : (
+                  filteredStocks.length === 0 ? '—' : `${startItem}–${endItem} / ${filteredStocks.length}`
+                )}
+              </div>
             </div>
           </div>
         </CardHeader>
+
         <CardContent className="p-0">
           <div className="overflow-x-auto">
             <table className="w-full text-xs">
@@ -285,6 +382,15 @@ export default function MarketPage() {
               </tbody>
             </table>
           </div>
+
+          {/* Pagination */}
+          {!loading && filteredStocks.length > 0 && (
+            <PaginationControls
+              currentPage={safePage}
+              totalPages={totalPages}
+              onPageChange={(p) => setCurrentPage(p)}
+            />
+          )}
         </CardContent>
       </Card>
     </div>

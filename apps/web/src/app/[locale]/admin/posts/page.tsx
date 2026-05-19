@@ -23,14 +23,19 @@ import {
 } from '@/components/ui/dialog';
 
 interface Post {
-  id: number;
+  id: string;
   title: string;
   content: string;
-  author: string;
+  author: { id: string; username: string; name: string | null };
   status: 'pending_review' | 'published' | 'rejected' | 'removed';
   viewCount: number;
   likeCount: number;
+  commentCount?: number;
+  shareCount?: number;
+  type?: string;
+  coverImage?: string | null;
   createdAt: string;
+  updatedAt?: string;
 }
 
 const STATUS_LABELS: Record<string, { label: string; className: string }> = {
@@ -47,7 +52,7 @@ export default function PostsPage() {
   const [page, setPage] = useState(1);
   const [pageSize] = useState(20);
   const [total, setTotal] = useState(0);
-  const [actingId, setActingId] = useState<number | null>(null);
+  const [actingId, setActingId] = useState<string | null>(null);
   const [previewPost, setPreviewPost] = useState<Post | null>(null);
 
   const fetchPosts = useCallback(async () => {
@@ -74,7 +79,7 @@ export default function PostsPage() {
     fetchPosts();
   }, [fetchPosts]);
 
-  const handleReview = async (postId: number, action: 'approve' | 'reject') => {
+  const handleReview = async (postId: string, action: 'approve' | 'reject' | 'remove') => {
     setActingId(postId);
     try {
       const res = await fetch(`http://localhost:3001/admin/posts/${postId}/review`, {
@@ -158,7 +163,7 @@ export default function PostsPage() {
                         </div>
                       </TableCell>
                       <TableCell className="text-muted-foreground text-sm">
-                        {typeof post.author === 'string' ? post.author : (post.author as { username: string }).username}
+                        {post.author?.username ?? String(post.author)}
                       </TableCell>
                       <TableCell>
                         <Badge className={st.className}>{st.label}</Badge>
@@ -235,7 +240,7 @@ export default function PostsPage() {
           </DialogHeader>
           <div className="space-y-3 text-sm">
             <div className="flex gap-4 text-muted-foreground">
-              <span>作者：{previewPost?.author}</span>
+              <span>作者：{previewPost?.author && typeof previewPost.author === 'object' ? previewPost.author.username : String(previewPost?.author ?? '')}</span>
               <span>浏览：{previewPost?.viewCount}</span>
               <span>点赞：{previewPost?.likeCount}</span>
             </div>

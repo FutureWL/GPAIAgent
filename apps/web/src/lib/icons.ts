@@ -64,6 +64,7 @@ export const icons = {
   Star: 'Star',
   ChartLine: 'ChartLine',
   ChartBarBig: 'ChartBarBig',
+  BarChart3: 'BarChart3',
   Crown: 'Crown',
   CreditCard: 'CreditCard',
   Database: 'Database',

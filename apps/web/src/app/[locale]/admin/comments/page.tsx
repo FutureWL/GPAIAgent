@@ -16,11 +16,13 @@ import {
 } from '@/components/ui/table';
 
 interface Comment {
-  id: number;
+  id: string;
   content: string;
-  author: string;
-  postId: number;
+  author: { id: string; username: string; name: string | null };
+  strategyId: string;
+  strategy?: { id: string; title: string };
   createdAt: string;
+  updatedAt?: string;
 }
 
 export default function CommentsPage() {
@@ -52,7 +54,7 @@ export default function CommentsPage() {
     fetchComments();
   }, [fetchComments]);
 
-  const handleDelete = async (id: number) => {
+  const handleDelete = async (id: string) => {
     try {
       const res = await fetch(`http://localhost:3001/admin/comments/${id}`, {
         method: 'DELETE',
@@ -83,7 +85,7 @@ export default function CommentsPage() {
                 <TableHead>ID</TableHead>
                 <TableHead>内容</TableHead>
                 <TableHead>作者</TableHead>
-                <TableHead>帖子ID</TableHead>
+                <TableHead>关联策略</TableHead>
                 <TableHead>时间</TableHead>
                 <TableHead>操作</TableHead>
               </TableRow>
@@ -113,8 +115,12 @@ export default function CommentsPage() {
                         <span className="text-sm line-clamp-2">{c.content}</span>
                       </div>
                     </TableCell>
-                    <TableCell className="text-muted-foreground text-sm">{c.author}</TableCell>
-                    <TableCell className="font-mono text-xs">{c.postId}</TableCell>
+                    <TableCell className="text-muted-foreground text-sm">
+                      {typeof c.author === 'string' ? c.author : (c.author as { username: string }).username}
+                    </TableCell>
+                    <TableCell className="text-muted-foreground text-sm">
+                      {c.strategy?.title ?? c.strategyId}
+                    </TableCell>
                     <TableCell className="text-muted-foreground text-sm">
                       {new Date(c.createdAt).toLocaleDateString('zh-CN')}
                     </TableCell>

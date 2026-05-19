@@ -16,11 +16,13 @@ import {
 } from '@/components/ui/table';
 
 interface Stock {
-  id: number;
+  id: string;
   code: string;
   name: string;
   market: string;
-  lastSyncAt: string | null;
+  type: string;
+  createdAt: string;
+  _count?: { quotes: number; strategies: number };
 }
 
 interface SyncStatus {
@@ -126,21 +128,24 @@ export default function StocksPage() {
                 <TableHead>代码</TableHead>
                 <TableHead>名称</TableHead>
                 <TableHead>市场</TableHead>
-                <TableHead>最后同步</TableHead>
+                <TableHead>类型</TableHead>
+                <TableHead>行情快照</TableHead>
+                <TableHead>关联策略</TableHead>
+                <TableHead>入库时间</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {loading ? (
                 Array.from({ length: 5 }).map((_, i) => (
                   <TableRow key={i}>
-                    {[1, 2, 3, 4].map((j) => (
+                    {[1, 2, 3, 4, 5, 6, 7].map((j) => (
                       <TableCell key={j}><div className="h-4 w-20 bg-muted rounded animate-pulse" /></TableCell>
                     ))}
                   </TableRow>
                 ))
               ) : stocks.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={4} className="text-center text-muted-foreground py-8">
+                  <TableCell colSpan={7} className="text-center text-muted-foreground py-8">
                     暂无股票数据
                   </TableCell>
                 </TableRow>
@@ -150,10 +155,11 @@ export default function StocksPage() {
                     <TableCell className="font-mono font-medium">{stock.code}</TableCell>
                     <TableCell>{stock.name}</TableCell>
                     <TableCell className="text-muted-foreground text-sm">{stock.market}</TableCell>
+                    <TableCell className="text-muted-foreground text-sm">{stock.type}</TableCell>
+                    <TableCell className="text-muted-foreground text-sm">{stock._count?.quotes ?? 0}</TableCell>
+                    <TableCell className="text-muted-foreground text-sm">{stock._count?.strategies ?? 0}</TableCell>
                     <TableCell className="text-muted-foreground text-sm">
-                      {stock.lastSyncAt
-                        ? new Date(stock.lastSyncAt).toLocaleString('zh-CN')
-                        : '从未同步'}
+                      {new Date(stock.createdAt).toLocaleDateString('zh-CN')}
                     </TableCell>
                   </TableRow>
                 ))

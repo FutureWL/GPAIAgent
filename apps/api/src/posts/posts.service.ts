@@ -5,10 +5,12 @@ import { PrismaService } from '../prisma/prisma.service';
 export class PostsService {
   constructor(private prisma: PrismaService) {}
 
-  async findAll(page = 1, pageSize = 10) {
+  async findAll(page = 1, pageSize = 10, type?: string) {
     const skip = (page - 1) * pageSize;
+    const where = type ? { type } : {};
     const [posts, total] = await Promise.all([
       (this.prisma as any).post.findMany({
+        where,
         skip,
         take: pageSize,
         orderBy: { createdAt: 'desc' },
@@ -17,7 +19,7 @@ export class PostsService {
           _count: { select: { likes: true, comments: true } },
         },
       }),
-      (this.prisma as any).post.count(),
+      (this.prisma as any).post.count({ where }),
     ]);
     return {
       posts: posts.map((p: any) => ({

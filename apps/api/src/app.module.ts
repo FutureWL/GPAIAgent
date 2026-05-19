@@ -11,6 +11,7 @@ import { AiModule } from './ai/ai.module';
 import { PostsModule } from './posts/posts.module';
 import { MarketSyncModule } from './market-sync/market-sync.module';
 import { AdminModule } from './admin/admin.module';
+import { AiSignalsModule } from './ai-signals/ai-signals.module';
 import { HealthController } from './health/health.controller';
 
 @Module({
@@ -30,6 +31,7 @@ import { HealthController } from './health/health.controller';
     PostsModule,
     MarketSyncModule,
     AdminModule,
+    AiSignalsModule,
   ],
   controllers: [HealthController],
 })

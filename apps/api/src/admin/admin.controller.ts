@@ -1,6 +1,7 @@
 import {
   Body,
   Controller,
+  Delete,
   Get,
   Param,
   Patch,
@@ -148,6 +149,15 @@ export class AdminController {
 
   // ============ 同步管理 ============
 
+  // ============ 同步状态（简化聚合） ============
+
+  @Get('sync/status')
+  async getSyncStatus() {
+    return this.adminService.getSyncStatus();
+  }
+
+  // ============ 同步管理 ============
+
   @Get('sync/queue')
   async getSyncQueue(
     @Query('page') page?: string,
@@ -178,6 +188,84 @@ export class AdminController {
       adminId: req.user.sub,
       ip: this.getClientIp(rawReq),
     });
+  }
+
+  // ============ 评论管理 ============
+
+  @Get('comments')
+  async getComments(
+    @Query('page') page?: string,
+    @Query('pageSize') pageSize?: string,
+    @Query('search') search?: string,
+  ) {
+    return this.adminService.getComments({
+      page: page ? Number(page) : undefined,
+      pageSize: pageSize ? Number(pageSize) : undefined,
+      search,
+    });
+  }
+
+  @Delete('comments/:id')
+  async deleteComment(
+    @Param('id') id: string,
+    @Req() req: AdminRequest,
+    @Req() rawReq: Request,
+  ) {
+    return this.adminService.deleteComment({
+      adminId: req.user.sub,
+      commentId: id,
+      ip: this.getClientIp(rawReq),
+    });
+  }
+
+  // ============ 股票管理 ============
+
+  @Get('stocks')
+  async getStocks(
+    @Query('page') page?: string,
+    @Query('pageSize') pageSize?: string,
+    @Query('search') search?: string,
+  ) {
+    return this.adminService.getStocks({
+      page: page ? Number(page) : undefined,
+      pageSize: pageSize ? Number(pageSize) : undefined,
+      search,
+    });
+  }
+
+  // ============ AI 生成记录 ============
+
+  @Get('ai-generations')
+  async getAiGenerations(
+    @Query('page') page?: string,
+    @Query('pageSize') pageSize?: string,
+    @Query('search') search?: string,
+  ) {
+    return this.adminService.getAiGenerations({
+      page: page ? Number(page) : undefined,
+      pageSize: pageSize ? Number(pageSize) : undefined,
+      search,
+    });
+  }
+
+  // ============ 会员管理 ============
+
+  @Get('memberships')
+  async getMemberships(
+    @Query('page') page?: string,
+    @Query('pageSize') pageSize?: string,
+    @Query('status') status?: string,
+  ) {
+    return this.adminService.getMemberships({
+      page: page ? Number(page) : undefined,
+      pageSize: pageSize ? Number(pageSize) : undefined,
+      status,
+    });
+  }
+
+  @Get('memberships/stats')
+  async getMembershipStats() {
+    return this.adminService.getMembershipStats();
   }
 
   // ============ 操作日志 ============

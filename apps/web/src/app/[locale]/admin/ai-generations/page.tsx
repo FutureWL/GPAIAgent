@@ -16,12 +16,18 @@ import {
 import { Button } from '@/components/ui/button';
 
 interface AiGeneration {
-  id: number;
-  type: string;
+  id: string;
+  userId: string;
+  stockCode: string | null;
+  stockName: string | null;
   prompt: string;
+  result: string;
+  riskLevel: string | null;
+  strategyId: string | null;
   model: string;
-  userId: number;
   createdAt: string;
+  user?: { id: string; username: string; name: string | null };
+  stock?: { id: string; code: string; name: string };
 }
 
 export default function AiGenerationsPage() {
@@ -68,9 +74,10 @@ export default function AiGenerationsPage() {
             <TableHeader>
               <TableRow>
                 <TableHead>ID</TableHead>
-                <TableHead>类型</TableHead>
+                <TableHead>用户</TableHead>
+                <TableHead>股票</TableHead>
+                <TableHead>风险等级</TableHead>
                 <TableHead>模型</TableHead>
-                <TableHead>用户ID</TableHead>
                 <TableHead>时间</TableHead>
               </TableRow>
             </TableHeader>
@@ -78,14 +85,14 @@ export default function AiGenerationsPage() {
               {loading ? (
                 Array.from({ length: 5 }).map((_, i) => (
                   <TableRow key={i}>
-                    {[1, 2, 3, 4, 5].map((j) => (
+                    {[1, 2, 3, 4, 5, 6].map((j) => (
                       <TableCell key={j}><div className="h-4 w-20 bg-muted rounded animate-pulse" /></TableCell>
                     ))}
                   </TableRow>
                 ))
               ) : records.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={5} className="text-center text-muted-foreground py-8">
+                  <TableCell colSpan={6} className="text-center text-muted-foreground py-8">
                     暂无 AI 生成记录
                   </TableCell>
                 </TableRow>
@@ -93,14 +100,16 @@ export default function AiGenerationsPage() {
                 records.map((r) => (
                   <TableRow key={r.id}>
                     <TableCell className="font-mono text-xs">{r.id}</TableCell>
-                    <TableCell>
-                      <div className="flex items-center gap-2">
-                        <Icon name={icons.BotMessageSquare} className="h-4 w-4 text-muted-foreground" />
-                        <span className="text-sm font-medium">{r.type}</span>
-                      </div>
+                    <TableCell className="text-muted-foreground text-sm">
+                      {r.user?.username ?? r.userId}
+                    </TableCell>
+                    <TableCell className="text-muted-foreground text-sm">
+                      {r.stock ? `${r.stock.code} ${r.stock.name}` : r.stockCode ?? '-'}
+                    </TableCell>
+                    <TableCell className="text-muted-foreground text-sm">
+                      {r.riskLevel ?? '-'}
                     </TableCell>
                     <TableCell className="text-muted-foreground text-sm">{r.model}</TableCell>
-                    <TableCell className="font-mono text-xs">{r.userId}</TableCell>
                     <TableCell className="text-muted-foreground text-sm">
                       {new Date(r.createdAt).toLocaleDateString('zh-CN')}
                     </TableCell>

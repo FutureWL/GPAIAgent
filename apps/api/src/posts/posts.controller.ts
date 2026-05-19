@@ -21,8 +21,9 @@ export class PostsController {
   async findAll(
     @Query('page') page = '1',
     @Query('pageSize') pageSize = '10',
+    @Query('type') type?: string,
   ) {
-    return this.postsService.findAll(+page, +pageSize);
+    return this.postsService.findAll(+page, +pageSize, type);
   }
 
   @Get(':id')

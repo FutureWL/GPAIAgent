@@ -293,6 +293,18 @@ export class AdminService {
     };
   }
 
+  // ============ 同步状态（简化聚合） ============
+
+  async getSyncStatus() {
+    const [queueDepth, recentJobs] = await Promise.all([
+      this.prismaService.syncQueue.count({ where: { status: 'PENDING' } }),
+      this.prismaService.syncJob.count({
+        where: { startedAt: { gte: new Date(Date.now() - 24 * 60 * 60 * 1000) } },
+      }),
+    ]);
+    return { queueDepth, recentJobs };
+  }
+
   // ============ 同步管理 ============
 
   async getSyncQueue(params: { page?: number; pageSize?: number; status?: string }) {
@@ -333,7 +345,6 @@ export class AdminService {
   }
 
   async triggerSync(params: { adminId: string; ip?: string }) {
-    // 创建一个全量同步任务
     const queue = await this.prismaService.syncQueue.create({
       data: {
         type: 'DAILY_KLINE',
@@ -355,6 +366,179 @@ export class AdminService {
     });
 
     return { id: queue.id, target: queue.target, type: queue.type, status: queue.status };
+  }
+
+  // ============ 评论管理 ============
+
+  async getComments(params: { page?: number; pageSize?: number; search?: string }) {
+    const page = Math.max(1, params.page ?? 1);
+    const pageSize = Math.min(100, Math.max(1, params.pageSize ?? 20));
+    const skip = (page - 1) * pageSize;
+
+    const where: any = {};
+    if (params.search) {
+      where.OR = [
+        { content: { contains: params.search, mode: 'insensitive' } },
+        { author: { username: { contains: params.search, mode: 'insensitive' } } },
+      ];
+    }
+
+    const [items, total] = await Promise.all([
+      this.prismaService.comment.findMany({
+        where,
+        skip,
+        take: pageSize,
+        orderBy: { createdAt: 'desc' },
+        include: {
+          author: { select: { id: true, username: true, name: true } },
+          strategy: { select: { id: true, title: true } },
+        },
+      }),
+      this.prismaService.comment.count({ where }),
+    ]);
+
+    return { items, total, page, pageSize, totalPages: Math.ceil(total / pageSize) };
+  }
+
+  async deleteComment(params: { adminId: string; commentId: string; ip?: string }) {
+    const comment = await this.prismaService.comment.findUnique({
+      where: { id: params.commentId },
+      select: { id: true, authorId: true, content: true },
+    });
+
+    if (!comment) {
+      throw new Error('Comment not found');
+    }
+
+    await this.prismaService.comment.delete({ where: { id: params.commentId } });
+
+    await this.prismaService.auditLog.create({
+      data: {
+        adminId: params.adminId,
+        action: 'COMMENT_DELETE',
+        targetType: 'Comment',
+        targetId: params.commentId,
+        detail: { authorId: comment.authorId, content: comment.content.substring(0, 50) },
+        ip: params.ip,
+      },
+    });
+
+    return { id: params.commentId };
+  }
+
+  // ============ 股票管理 ============
+
+  async getStocks(params: { page?: number; pageSize?: number; search?: string }) {
+    const page = Math.max(1, params.page ?? 1);
+    const pageSize = Math.min(100, Math.max(1, params.pageSize ?? 20));
+    const skip = (page - 1) * pageSize;
+
+    const where: any = {};
+    if (params.search) {
+      where.OR = [
+        { code: { contains: params.search, mode: 'insensitive' } },
+        { name: { contains: params.search, mode: 'insensitive' } },
+      ];
+    }
+
+    const [items, total] = await Promise.all([
+      this.prismaService.stock.findMany({
+        where,
+        skip,
+        take: pageSize,
+        orderBy: { createdAt: 'desc' },
+        include: {
+          _count: { select: { quotes: true, strategies: true } },
+        },
+      }),
+      this.prismaService.stock.count({ where }),
+    ]);
+
+    return { items, total, page, pageSize, totalPages: Math.ceil(total / pageSize) };
+  }
+
+  // ============ AI 生成记录 ============
+
+  async getAiGenerations(params: { page?: number; pageSize?: number; search?: string }) {
+    const page = Math.max(1, params.page ?? 1);
+    const pageSize = Math.min(100, Math.max(1, params.pageSize ?? 20));
+    const skip = (page - 1) * pageSize;
+
+    const where: any = {};
+    if (params.search) {
+      where.OR = [
+        { prompt: { contains: params.search, mode: 'insensitive' } },
+        { result: { contains: params.search, mode: 'insensitive' } },
+        { user: { username: { contains: params.search, mode: 'insensitive' } } },
+      ];
+    }
+
+    const [items, total] = await Promise.all([
+      this.prismaService.aIGeneration.findMany({
+        where,
+        skip,
+        take: pageSize,
+        orderBy: { createdAt: 'desc' },
+        include: {
+          user: { select: { id: true, username: true, name: true } },
+          stock: { select: { id: true, code: true, name: true } },
+        },
+      }),
+      this.prismaService.aIGeneration.count({ where }),
+    ]);
+
+    return { items, total, page, pageSize, totalPages: Math.ceil(total / pageSize) };
+  }
+
+  // ============ 会员管理 ============
+
+  async getMemberships(params: { page?: number; pageSize?: number; status?: string }) {
+    const page = Math.max(1, params.page ?? 1);
+    const pageSize = Math.min(100, Math.max(1, params.pageSize ?? 20));
+    const skip = (page - 1) * pageSize;
+
+    const where: any = {};
+    if (params.status) {
+      if (params.status === 'active') {
+        where.status = 'ACTIVE';
+        where.expiredAt = { gte: new Date() };
+      } else if (params.status === 'expired') {
+        where.OR = [
+          { status: 'EXPIRED' },
+          { expiredAt: { lt: new Date() } },
+        ];
+      }
+    }
+
+    const [items, total] = await Promise.all([
+      this.prismaService.membership.findMany({
+        where,
+        skip,
+        take: pageSize,
+        orderBy: { startedAt: 'desc' },
+        include: {
+          user: { select: { id: true, username: true, name: true, email: true } },
+        },
+      }),
+      this.prismaService.membership.count({ where }),
+    ]);
+
+    return { items, total, page, pageSize, totalPages: Math.ceil(total / pageSize) };
+  }
+
+  async getMembershipStats() {
+    const [total, active, expired, trial, privateMembers] = await Promise.all([
+      this.prismaService.membership.count(),
+      this.prismaService.membership.count({
+        where: { status: 'ACTIVE', expiredAt: { gte: new Date() } },
+      }),
+      this.prismaService.membership.count({
+        where: { OR: [{ status: 'EXPIRED' }, { expiredAt: { lt: new Date() } }] },
+      }),
+      this.prismaService.membership.count({ where: { type: 'TRIAL' } }),
+      this.prismaService.membership.count({ where: { level: 'PRIVATE' } }),
+    ]);
+    return { total, active, expired, trial, private: privateMembers };
   }
 
   // ============ 操作日志 ============

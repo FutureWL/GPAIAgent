@@ -628,6 +628,32 @@ export class StocksService {
     });
   }
 
+  // 热门股票：从 MOCK_STOCKS 列表中取有真实行情的股票，按成交量排序
+  async getHotStocks(limit = 8): Promise<Array<{ code: string; name: string; price: number; change: number; changePercent: number; volume: number }>> {
+    const hotCodes = MOCK_STOCKS.filter(s => s.type === 'stock').map(s => s.code);
+    const quotes = await this.getBatchQuotes(hotCodes);
+    const quoteMap = new Map(quotes.map(q => [q.code.replace(/^(sh|sz)/, ''), q]));
+
+    const withQuotes = MOCK_STOCKS
+      .filter(s => s.type === 'stock')
+      .map(s => {
+        const qt = quoteMap.get(s.code);
+        return {
+          code: s.code,
+          name: qt?.name || s.name,
+          price: qt?.price ?? 0,
+          change: qt?.change ?? 0,
+          changePercent: qt?.changePercent ?? 0,
+          volume: qt?.volume ?? 0,
+        };
+      })
+      .filter(s => s.price > 0)
+      .sort((a, b) => b.volume - a.volume)
+      .slice(0, limit);
+
+    return withQuotes;
+  }
+
   // 获取单只股票详情
   async getByCode(code: string) {
     const mock = MOCK_STOCKS.find((s) => s.code === code);

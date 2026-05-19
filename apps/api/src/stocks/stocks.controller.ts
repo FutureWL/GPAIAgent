@@ -12,6 +12,12 @@ export class StocksController {
     return this.stocksService.search(query ?? '');
   }
 
+  /** 热门股票榜单 - 返回成交量/涨幅排名靠前的股票 */
+  @Get('hot')
+  getHotStocks(@Query('limit') limit?: string) {
+    return this.stocksService.getHotStocks(limit ? parseInt(limit) : 8);
+  }
+
   /** 批量实时行情 - 支持任意股票代码 */
   @Get('quotes')
   async getQuotes(@Query('codes') codes: string) {

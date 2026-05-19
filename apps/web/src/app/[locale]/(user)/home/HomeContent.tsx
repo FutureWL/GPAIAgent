@@ -3,10 +3,19 @@
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { Star, Crown, TrendingUp, Newspaper, Zap, ArrowRight } from 'lucide-react';
 import { Icon, icons } from '@/components/ui/icon';
 
+// ============ types ============
 type StockItem = {
+  code: string;
+  name: string;
+  price: number;
+  change: number;
+  changePercent: number;
+  volume: number;
+};
+
+type IndexItem = {
   code: string;
   name: string;
   price: number;
@@ -14,29 +23,87 @@ type StockItem = {
   changePercent: number;
 };
 
-type HomeContentProps = {
-  username: string;
-  locale?: string;
+type Article = {
+  id: string;
+  title: string;
+  excerpt?: string;
+  type: string;
+  createdAt: string;
 };
 
-export default function HomeContent({ username, locale = 'zh' }: HomeContentProps) {
-  const router = useRouter();
-  const [stocks, setStocks] = useState<StockItem[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [search, setSearch] = useState('');
+type AiSignal = {
+  id: string;
+  stockCode: string;
+  stockName: string;
+  type: 'BUY' | 'SELL' | 'HOLD';
+  reason: string;
+  price: number;
+  createdAt: string;
+};
 
+// ============ 工具函数 ============
+function timeAgo(dateStr: string, locale = 'zh'): string {
+  const diff = Date.now() - new Date(dateStr).getTime();
+  const mins = Math.floor(diff / 60000);
+  const hours = Math.floor(diff / 3600000);
+  const days = Math.floor(diff / 86400000);
+  if (locale === 'zh') {
+    if (mins < 1) return '刚刚';
+    if (mins < 60) return `${mins}分钟前`;
+    if (hours < 24) return `${hours}小时前`;
+    return `${days}天前`;
+  }
+  if (mins < 1) return 'just now';
+  if (mins < 60) return `${mins} min ago`;
+  if (hours < 24) return `${hours} hr ago`;
+  return `${days} days ago`;
+}
+
+function getTagLabel(type: string, locale: string = 'zh'): string {
+  const map: Record<string, { zh: string; en: string }> = {
+    article: { zh: '市场', en: 'Market' },
+    video: { zh: '视频', en: 'Video' },
+    tutorial: { zh: '教程', en: 'Tutorial' },
+    ai: { zh: 'AI信号', en: 'AI Signal' },
+    news: { zh: '资讯', en: 'News' },
+  };
+  const entry = map[type];
+  return (entry?.[locale as 'zh' | 'en'] ?? (locale === 'zh' ? '资讯' : 'News'));
+}
+
+// ============ 组件 ============
+export default function HomeContent({ username, locale = 'zh' }: { username: string; locale?: string }) {
+  const router = useRouter();
   const localePrefix = `/${locale}`;
 
+  const [hotStocks, setHotStocks] = useState<StockItem[]>([]);
+  const [indices, setIndices] = useState<IndexItem[]>([]);
+  const [articles, setArticles] = useState<Article[]>([]);
+  const [aiSignals, setAiSignals] = useState<AiSignal[]>([]);
+  const [hotLoading, setHotLoading] = useState(true);
+  const [articlesLoading, setArticlesLoading] = useState(true);
+  const [search, setSearch] = useState('');
+
+  // 并行加载所有数据
   useEffect(() => {
     Promise.all([
-      fetch('/stocks/search?q=茅台').then((r) => r.json()),
-      fetch('/stocks/search?q=平安').then((r) => r.json()),
-    ])
-      .then(([a, b]) => {
-        setStocks([...(a as StockItem[]), ...(b as StockItem[])].slice(0, 8));
-      })
-      .catch(() => setStocks([]))
-      .finally(() => setLoading(false));
+      // 热门股票
+      fetch('/api/stocks/hot?limit=8').then(r => r.json()).catch(() => []),
+      // 大盘指数
+      fetch('/api/stocks/quotes?codes=sh000001,sz399001,sz399006').then(r => r.json()).catch(() => []),
+      // 资讯
+      fetch('/api/posts?type=article&pageSize=3').then(r => r.json()).then(d => d.posts ?? []).catch(() => []),
+      // AI信号
+      fetch('/api/ai-signals/today?limit=3').then(r => r.json()).catch(() => []),
+    ]).then(([stocks, idx, arts, signals]) => {
+      setHotStocks(Array.isArray(stocks) ? stocks : []);
+      setIndices(Array.isArray(idx) ? idx : []);
+      setArticles(Array.isArray(arts) ? arts : (arts.posts ?? []));
+      setAiSignals(Array.isArray(signals) ? signals : []);
+    }).finally(() => {
+      setHotLoading(false);
+      setArticlesLoading(false);
+    });
   }, []);
 
   const handleSearch = () => {
@@ -45,10 +112,15 @@ export default function HomeContent({ username, locale = 'zh' }: HomeContentProp
     }
   };
 
+  // 统一涨跌颜色
+  const upColor = 'text-red-400';
+  const downColor = 'text-green-400';
+  const fmt = (n: number, decimals = 2) => (n >= 0 ? '+' : '') + n.toFixed(decimals);
+
   return (
     <div className="space-y-6 max-w-5xl mx-auto">
 
-      {/* Welcome Banner */}
+      {/* ========== 欢迎 Banner ========== */}
       <div className="bg-gradient-to-r from-blue-900 via-blue-800 to-indigo-900 rounded-2xl p-8 text-white relative overflow-hidden">
         <div className="relative z-10">
           <div className="flex items-center gap-2 mb-2">
@@ -64,17 +136,31 @@ export default function HomeContent({ username, locale = 'zh' }: HomeContentProp
               : 'AI-powered short-term trading strategies to help you seize every opportunity'}
           </p>
         </div>
-        {/* Decorative circles */}
         <div className="absolute -right-8 -top-8 w-40 h-40 bg-blue-600/20 rounded-full" />
         <div className="absolute -right-4 bottom-0 w-24 h-24 bg-indigo-600/20 rounded-full" />
       </div>
 
-      {/* Quick Access Cards */}
+      {/* ========== 大盘指数横滚条 ========== */}
+      {indices.length > 0 && (
+        <div className="flex gap-4 overflow-x-auto pb-1">
+          {indices.map((idx) => {
+            const up = idx.change >= 0;
+            return (
+              <div key={idx.code} className="flex-shrink-0 bg-card border border-border rounded-xl px-5 py-3 min-w-[170px]">
+                <div className="text-xs text-muted-foreground mb-0.5">{idx.name}</div>
+                <div className="text-lg font-mono font-bold leading-tight">{idx.price.toFixed(2)}</div>
+                <div className={`text-sm font-mono ${up ? upColor : downColor}`}>
+                  {fmt(idx.change)} ({fmt(idx.changePercent)}%)
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+
+      {/* ========== 快捷入口 ========== */}
       <div className="grid grid-cols-3 gap-4">
-        <Link
-          href={`${localePrefix}/watchlist`}
-          className="group bg-card border border-border rounded-xl p-5 hover:border-primary/50 hover:shadow-lg transition-all"
-        >
+        <Link href={`${localePrefix}/watchlist`} className="group bg-card border border-border rounded-xl p-5 hover:border-primary/50 hover:shadow-lg transition-all">
           <div className="flex items-center justify-between mb-3">
             <div className="w-10 h-10 rounded-lg bg-yellow-500/10 flex items-center justify-center">
               <Icon name={icons.Star} className="w-5 h-5 text-yellow-500" />
@@ -85,10 +171,7 @@ export default function HomeContent({ username, locale = 'zh' }: HomeContentProp
           <div className="text-xs text-muted-foreground">{locale === 'zh' ? '关注股票实时行情' : 'Track stocks in real-time'}</div>
         </Link>
 
-        <Link
-          href={`${localePrefix}/membership`}
-          className="group bg-card border border-border rounded-xl p-5 hover:border-primary/50 hover:shadow-lg transition-all"
-        >
+        <Link href={`${localePrefix}/membership`} className="group bg-card border border-border rounded-xl p-5 hover:border-primary/50 hover:shadow-lg transition-all">
           <div className="flex items-center justify-between mb-3">
             <div className="w-10 h-10 rounded-lg bg-purple-500/10 flex items-center justify-center">
               <Icon name={icons.Crown} className="w-5 h-5 text-purple-500" />
@@ -99,13 +182,10 @@ export default function HomeContent({ username, locale = 'zh' }: HomeContentProp
           <div className="text-xs text-muted-foreground">{locale === 'zh' ? '解锁 AI 分析特权' : 'Unlock AI analysis features'}</div>
         </Link>
 
-        <Link
-          href={`${localePrefix}/strategies`}
-          className="group bg-card border border-border rounded-xl p-5 hover:border-primary/50 hover:shadow-lg transition-all"
-        >
+        <Link href={`${localePrefix}/strategies`} className="group bg-card border border-border rounded-xl p-5 hover:border-primary/50 hover:shadow-lg transition-all">
           <div className="flex items-center justify-between mb-3">
             <div className="w-10 h-10 rounded-lg bg-green-500/10 flex items-center justify-center">
-              <Icon name={icons.ChartBarBig} className="w-5 h-5 text-green-500" />
+              <Icon name={icons.BarChart3} className="w-5 h-5 text-green-500" />
             </div>
             <Icon name={icons.ArrowRight} className="w-4 h-4 text-muted-foreground group-hover:text-primary transition-colors" />
           </div>
@@ -114,9 +194,39 @@ export default function HomeContent({ username, locale = 'zh' }: HomeContentProp
         </Link>
       </div>
 
-      {/* Main Content: Market + News */}
+      {/* ========== AI 今日信号 ========== */}
+      {aiSignals.length > 0 && (
+        <div className="bg-gradient-to-r from-amber-900/20 to-orange-900/20 border border-amber-500/20 rounded-xl p-5">
+          <div className="flex items-center gap-2 mb-4">
+            <Icon name={icons.Zap} className="w-4 h-4 text-amber-400" />
+            <h2 className="font-semibold text-sm">{locale === 'zh' ? 'AI 今日信号' : 'AI Today\'s Signals'}</h2>
+          </div>
+          <div className="space-y-2">
+            {aiSignals.map((signal) => {
+              const typeStyles = {
+                BUY: 'bg-red-500/10 text-red-400 border border-red-500/20',
+                SELL: 'bg-green-500/10 text-green-400 border border-green-500/20',
+                HOLD: 'bg-yellow-500/10 text-yellow-400 border border-yellow-500/20',
+              };
+              const typeLabels = { BUY: locale === 'zh' ? '买入' : 'BUY', SELL: locale === 'zh' ? '卖出' : 'SELL', HOLD: locale === 'zh' ? '持有' : 'HOLD' };
+              return (
+                <div key={signal.id} className="flex items-center gap-3 p-3 bg-card/60 rounded-lg">
+                  <span className={`text-xs font-bold px-2 py-0.5 rounded flex-shrink-0 ${typeStyles[signal.type]}`}>
+                    {typeLabels[signal.type]}
+                  </span>
+                  <span className="text-sm font-medium">{signal.stockName}</span>
+                  <span className="text-xs text-muted-foreground flex-1 truncate">{signal.reason}</span>
+                  <span className="text-xs text-muted-foreground flex-shrink-0">{signal.price.toFixed(2)}</span>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
+      {/* ========== 主内容区：热门股票 + 最新资讯 ========== */}
       <div className="grid grid-cols-3 gap-6">
-        {/* Stock Market Table */}
+        {/* 热门股票 */}
         <div className="col-span-2 bg-card border border-border rounded-xl overflow-hidden">
           <div className="px-5 py-4 border-b border-border flex items-center justify-between">
             <div className="flex items-center gap-2">
@@ -128,7 +238,7 @@ export default function HomeContent({ username, locale = 'zh' }: HomeContentProp
             </Link>
           </div>
 
-          {/* Search bar inside */}
+          {/* 搜索框 */}
           <div className="px-5 py-3 border-b border-border">
             <div className="flex gap-2">
               <input
@@ -147,9 +257,9 @@ export default function HomeContent({ username, locale = 'zh' }: HomeContentProp
             </div>
           </div>
 
-          {loading ? (
+          {hotLoading ? (
             <div className="p-8 text-center text-sm text-muted-foreground">{locale === 'zh' ? '加载中...' : 'Loading...'}</div>
-          ) : stocks.length === 0 ? (
+          ) : hotStocks.length === 0 ? (
             <div className="p-8 text-center text-sm text-muted-foreground">{locale === 'zh' ? '暂无数据' : 'No data'}</div>
           ) : (
             <table className="w-full text-sm">
@@ -163,19 +273,22 @@ export default function HomeContent({ username, locale = 'zh' }: HomeContentProp
                 </tr>
               </thead>
               <tbody>
-                {stocks.map((s) => {
+                {hotStocks.map((s) => {
                   const up = s.change >= 0;
                   return (
-                    <tr key={s.code} className="border-b border-border/50 hover:bg-accent/30 transition-colors cursor-pointer"
-                      onClick={() => router.push(`${localePrefix}/market?search=${s.code}`)}>
+                    <tr
+                      key={s.code}
+                      className="border-b border-border/50 hover:bg-accent/30 transition-colors cursor-pointer"
+                      onClick={() => router.push(`${localePrefix}/market?search=${s.code}`)}
+                    >
                       <td className="px-5 py-2.5 text-muted-foreground font-mono text-xs">{s.code}</td>
                       <td className="px-2 py-2.5 font-medium text-sm">{s.name}</td>
-                      <td className="px-3 py-2.5 text-right font-mono">{Number(s.price).toFixed(2)}</td>
-                      <td className={`px-3 py-2.5 text-right font-mono ${up ? 'text-red-400' : 'text-green-400'}`}>
-                        {up ? '+' : ''}{Number(s.change).toFixed(2)}
+                      <td className="px-3 py-2.5 text-right font-mono">{s.price > 0 ? s.price.toFixed(2) : '-'}</td>
+                      <td className={`px-3 py-2.5 text-right font-mono ${up ? upColor : downColor}`}>
+                        {s.price > 0 ? fmt(s.change) : '-'}
                       </td>
-                      <td className={`px-5 py-2.5 text-right font-mono ${up ? 'text-red-400' : 'text-green-400'}`}>
-                        {up ? '+' : ''}{Number(s.changePercent).toFixed(2)}%
+                      <td className={`px-5 py-2.5 text-right font-mono ${up ? upColor : downColor}`}>
+                        {s.price > 0 ? `${fmt(s.changePercent)}%` : '-'}
                       </td>
                     </tr>
                   );
@@ -185,30 +298,34 @@ export default function HomeContent({ username, locale = 'zh' }: HomeContentProp
           )}
         </div>
 
-        {/* News / Announcements */}
+        {/* 最新资讯 */}
         <div className="bg-card border border-border rounded-xl overflow-hidden">
           <div className="px-5 py-4 border-b border-border flex items-center gap-2">
             <Icon name={icons.Newspaper} className="w-4 h-4 text-primary" />
             <h2 className="font-semibold text-sm">{locale === 'zh' ? '最新资讯' : 'Latest News'}</h2>
           </div>
           <div className="p-4 space-y-3">
-            {[
-              { title: locale === 'zh' ? 'A股三大指数集体收涨，沪指重回3300点' : 'A-shares close higher, Shanghai Composite back above 3300', time: locale === 'zh' ? '10分钟前' : '10 min ago', tag: locale === 'zh' ? '市场' : 'Market' },
-              { title: locale === 'zh' ? 'AI策略信号：贵州茅台出现买入窗口' : 'AI Signal: Kweichow Moutai shows buy signal', time: locale === 'zh' ? '35分钟前' : '35 min ago', tag: locale === 'zh' ? 'AI信号' : 'AI Signal' },
-              { title: locale === 'zh' ? '新手入门：如何使用AI策略辅助短线交易' : 'Guide: How to use AI strategies for short-term trading', time: locale === 'zh' ? '2小时前' : '2 hrs ago', tag: locale === 'zh' ? '教程' : 'Tutorial' },
-            ].map((item, i) => (
-              <Link href={`${localePrefix}/blog`} key={i} className="block group">
-                <div className="flex items-start gap-3 p-3 rounded-lg hover:bg-accent/50 transition-colors">
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2 mb-1">
-                      <span className="text-[10px] font-medium bg-primary/10 text-primary px-1.5 py-0.5 rounded">{item.tag}</span>
-                      <span className="text-[10px] text-muted-foreground">{item.time}</span>
+            {articlesLoading ? (
+              <div className="text-center text-sm text-muted-foreground py-4">{locale === 'zh' ? '加载中...' : 'Loading...'}</div>
+            ) : articles.length === 0 ? (
+              <div className="text-center text-sm text-muted-foreground py-4">{locale === 'zh' ? '暂无资讯' : 'No news'}</div>
+            ) : (
+              articles.map((article) => (
+                <Link href={`${localePrefix}/blog/${article.id}`} key={article.id} className="block group">
+                  <div className="flex items-start gap-3 p-3 rounded-lg hover:bg-accent/50 transition-colors">
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2 mb-1">
+                        <span className="text-[10px] font-medium bg-primary/10 text-primary px-1.5 py-0.5 rounded">
+                          {getTagLabel(article.type, locale)}
+                        </span>
+                        <span className="text-[10px] text-muted-foreground">{timeAgo(article.createdAt, locale)}</span>
+                      </div>
+                      <div className="text-sm leading-snug group-hover:text-primary transition-colors line-clamp-2">{article.title}</div>
                     </div>
-                    <div className="text-sm leading-snug group-hover:text-primary transition-colors line-clamp-2">{item.title}</div>
                   </div>
-                </div>
-              </Link>
-            ))}
+                </Link>
+              ))
+            )}
           </div>
           <Link href={`${localePrefix}/blog`} className="block px-5 py-3 border-t border-border text-xs text-primary hover:underline text-center">
             {locale === 'zh' ? '查看全部资讯 →' : 'View all →'}
@@ -216,7 +333,7 @@ export default function HomeContent({ username, locale = 'zh' }: HomeContentProp
         </div>
       </div>
 
-      {/* Disclaimer */}
+      {/* 风险提示 */}
       <div className="text-center text-xs text-muted-foreground/50 py-2">
         {locale === 'zh'
           ? '市场有风险，投资需谨慎。本平台仅供辅助参考，不构成任何投资建议。'
