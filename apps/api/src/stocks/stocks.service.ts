@@ -344,18 +344,22 @@ export class StocksService {
       return this.fetchMinuteKline(code, period, count);
     }
 
-    // 日K: 直接调腾讯接口（不入库）
+    // 日K: 优先调腾讯接口，失败则从 stockDaily fallback
     if (period === 'day') {
-      return this.fetchPeriodKline(code, 'day', count);
+      const apiBars = await this.fetchPeriodKline(code, 'day', count);
+      if (apiBars.length > 0) return apiBars;
+      return this.klineFromDailyDb(code, 'day', count);
     }
 
-    // 季K: 将月K数据按季度聚合（腾讯不支持season周期）
+    // 季K: 优先从月K聚合，失败则从 stockDaily 按季度聚合
     if (period === 'season') {
       const monthBars = await this.fetchPeriodKline(code, 'month', count * 3);
-      return aggregateBySeason(monthBars);
+      if (monthBars.length > 0) return aggregateBySeason(monthBars);
+      // Fallback: 从 stockDaily 聚合季K
+      return this.klineFromDailyDb(code, 'season', count);
     }
 
-    // 周/月/年: 先查 DB，再补缺
+    // 周/月/年: 先查 stockPeriodKline（特定周期），再补缺
     const dbRecords = await this.prismaService.stockPeriodKline.findMany({
       where: { stockId: { in: (await this.prismaService.stock.findMany({ where: { code }, select: { id: true } })).map(s => s.id) }, period },
       orderBy: { date: 'asc' },
@@ -373,34 +377,131 @@ export class StocksService {
         dbBars = [...dbBars, ...newBars].slice(-count);
       }
     }
+    // stockPeriodKline 和 API 都失败，从 stockDaily 按周期聚合
+    if (dbBars.length === 0) {
+      return this.klineFromDailyDb(code, period as 'week' | 'month' | 'year', count);
+    }
     return dbBars;
   }
 
-  // minute/5day 外部 API 不可达时，从 DB stockDaily 数据构建近似 KBar 列表
-  // minute: 将 stockDaily 数据每条展开为一个"分时点"（开盘时刻，close 价格）
-  // 5day: 将多个交易日 stockDaily 串联，每条日K展开为一个分时点
-  private async klineFromDailyDb(code: string, period: 'day' | '5day', count = 120): Promise<KBar[]> {
+  // 外部 API 不可达时，从 DB stockDaily 数据构建 KBar 列表
+  // day: 直接返回 stockDaily 的日K（保留真实 OHLC）
+  // 5day: 返回最近5条 stockDaily，每条作为一个"分时点"（date 固定 09:30，OHLC 保留原始值）
+  // week: 将 stockDaily 按周聚合
+  // month: 将 stockDaily 按月聚合
+  // season: 将 stockDaily 按季度聚合
+  // year: 将 stockDaily 按年聚合
+  // minute: 每条 stockDaily 展开为一个"分时点"（09:30 时刻，OHLC = close）
+  private async klineFromDailyDb(code: string, period: 'day' | '5day' | 'week' | 'month' | 'season' | 'year' | 'minute', count = 120): Promise<KBar[]> {
     const stock = await this.prismaService.stock.findUnique({ where: { code } });
     if (!stock) return [];
 
     const dbRecords = await this.prismaService.stockDaily.findMany({
       where: { stockId: stock.id },
       orderBy: { date: 'desc' },
-      take: period === '5day' ? 5 : 1,
+      take: 500, // 聚合需要足够的历史数据
     });
     if (dbRecords.length === 0) return [];
 
-    // 每条日K转为一个分时点（date + 09:30 = 开盘时刻，close 价格）
-    return dbRecords
-      .map(r => ({
-        date: `${r.date.toISOString().slice(0, 10)} 09:30`,
-        open: r.close,
-        close: r.close,
-        high: r.close,
-        low: r.close,
-        volume: r.volume,
-      }))
-      .slice(0, count);
+    // minute: 每条日K展开为一个分时点（开盘时刻，close 价格，所有 OHLC = close）
+    if (period === 'minute') {
+      return dbRecords
+        .map(r => ({
+          date: `${r.date.toISOString().slice(0, 10)} 09:30`,
+          open: r.close, close: r.close, high: r.close, low: r.close, volume: r.volume,
+        }))
+        .slice(0, count);
+    }
+
+    // 5day: 最近5个交易日，每条作为一个分时点（date 固定 09:30，OHLC 保留原始值）
+    if (period === '5day') {
+      return dbRecords
+        .map(r => ({
+          date: `${r.date.toISOString().slice(0, 10)} 09:30`,
+          open: r.open, close: r.close, high: r.high, low: r.low, volume: r.volume,
+        }))
+        .slice(0, 5);
+    }
+
+    // 日K: 直接返回 stockDaily（保留真实 OHLC）
+    if (period === 'day') {
+      return dbRecords
+        .map(r => ({
+          date: r.date.toISOString().slice(0, 10),
+          open: r.open, close: r.close, high: r.high, low: r.low, volume: r.volume,
+        }))
+        .slice(0, count);
+    }
+
+    // 周K: 按周聚合 stockDaily
+    if (period === 'week') {
+      const weekMap = new Map<string, KBar>();
+      for (const r of dbRecords) {
+        const d = new Date(r.date);
+        // ISO 周起始日（周一）
+        const day = d.getDay();
+        const diff = (day === 0 ? 6 : day - 1);
+        const weekStart = new Date(d);
+        weekStart.setDate(d.getDate() - diff);
+        const key = weekStart.toISOString().slice(0, 10);
+        const existing = weekMap.get(key);
+        if (!existing) {
+          weekMap.set(key, { date: key, open: r.open, close: r.close, high: r.high, low: r.low, volume: r.volume });
+        } else {
+          existing.high = Math.max(existing.high, r.high);
+          existing.low = Math.min(existing.low, r.low);
+          existing.close = r.close;
+          existing.volume += r.volume;
+        }
+      }
+      return [...weekMap.values()].sort((a, b) => a.date.localeCompare(b.date)).slice(-count);
+    }
+
+    // 月K: 按月聚合 stockDaily
+    if (period === 'month') {
+      const monthMap = new Map<string, KBar>();
+      for (const r of dbRecords) {
+        const key = r.date.toISOString().slice(0, 7); // YYYY-MM
+        const existing = monthMap.get(key);
+        if (!existing) {
+          monthMap.set(key, { date: key, open: r.open, close: r.close, high: r.high, low: r.low, volume: r.volume });
+        } else {
+          existing.high = Math.max(existing.high, r.high);
+          existing.low = Math.min(existing.low, r.low);
+          existing.close = r.close;
+          existing.volume += r.volume;
+        }
+      }
+      return [...monthMap.values()].sort((a, b) => a.date.localeCompare(b.date)).slice(-count);
+    }
+
+    // 季K: 按季度聚合 stockDaily
+    if (period === 'season') {
+      return aggregateBySeason(dbRecords.map(r => ({
+        date: r.date.toISOString().slice(0, 10),
+        open: r.open, close: r.close, high: r.high, low: r.low, volume: r.volume,
+      })));
+    }
+
+    // 年K: 按年聚合 stockDaily
+    if (period === 'year') {
+      const yearMap = new Map<string, KBar>();
+      for (const r of dbRecords) {
+        const key = r.date.toISOString().slice(0, 4); // YYYY
+        const existing = yearMap.get(key);
+        if (!existing) {
+          yearMap.set(key, { date: key, open: r.open, close: r.close, high: r.high, low: r.low, volume: r.volume });
+        } else {
+          existing.high = Math.max(existing.high, r.high);
+          existing.low = Math.min(existing.low, r.low);
+          existing.close = r.close;
+          existing.volume += r.volume;
+        }
+      }
+      return [...yearMap.values()].sort((a, b) => a.date.localeCompare(b.date)).slice(-count);
+    }
+
+    return [];
   }
 
   // 实时行情（供 /stocks/:code/quote 路由使用）
