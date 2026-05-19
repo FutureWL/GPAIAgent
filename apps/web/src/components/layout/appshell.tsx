@@ -26,10 +26,20 @@ interface AppShellProps {
 export default function AppShell({ children, me, locale = 'zh' }: AppShellProps) {
   return (
     <div className="flex h-screen bg-background">
-      <Sidebar locale={locale as 'zh' | 'en'} me={me} />
+      {/* Sidebar: z-20, 左侧导航（层次高于顶部导航栏） */}
+      <div className="relative z-20 flex-shrink-0">
+        <Sidebar locale={locale as 'zh' | 'en'} me={me} />
+      </div>
+      {/* 主内容区 */}
       <div className="flex-1 flex flex-col min-w-0">
-        <StockTicker />
-        <Header locale={locale as 'zh' | 'en'} me={me} />
+        {/* 顶部行情 ticker: z-10（层次最低） */}
+        <div className="relative z-10">
+          <StockTicker />
+        </div>
+        {/* 顶部导航栏: z-20（高于 ticker） */}
+        <div className="relative z-20">
+          <Header locale={locale as 'zh' | 'en'} me={me} />
+        </div>
         <main className="flex-1 overflow-y-auto p-6">
           {children}
         </main>

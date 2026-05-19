@@ -203,16 +203,7 @@ export default function Header({ locale, me }: HeaderProps) {
               <span className="text-sm font-medium text-gray-700 hidden sm:block">{displayName}</span>
             </button>
           </Dropdown>
-        ) : (
-          <div className="flex items-center gap-2">
-            <Link href={`/${locale}/login`}>
-              <Button type="text" size="small" className="text-xs">登录</Button>
-            </Link>
-            <Link href={`/${locale}/register`}>
-              <Button size="small" className="text-xs">注册</Button>
-            </Link>
-          </div>
-        )}
+        ) : null}
       </div>
     </header>
   );
