@@ -369,8 +369,44 @@ export class StocksService {
   }
 
   // 实时行情（供 /stocks/:code/quote 路由使用）
+  // 外部行情接口失败时，从数据库取最新日K数据作为 fallback
   async getRealtimeQuote(code: string): Promise<RealTimeQuote | null> {
-    return this.fetchRealTimeQuote(code);
+    const qt = await this.fetchRealTimeQuote(code);
+    if (qt) return qt;
+
+    // Fallback 1: 从 DB 取最新日K数据
+    const stock = await this.prismaService.stock.findUnique({ where: { code } });
+    if (!stock) return null;
+
+    const bars = await this.prismaService.stockPeriodKline.findMany({
+      where: { stockId: stock.id, period: 'day' },
+      orderBy: { date: 'desc' },
+      take: 1,
+    });
+    const lastBar = bars[0];
+
+    // Fallback: stock 表自身的价格字段（市场同步时写入的最近价）
+    // Prisma Stock 类型不包含这些字段，用 any 断言绕过（Schema 后续扩展后会移除）
+    const s = stock as any;
+
+    return {
+      code: stock.code,
+      name: stock.name,
+      price: lastBar ? lastBar.close : (s.price ?? 0),
+      change: s.change ?? 0,
+      changePercent: s.changePercent ?? 0,
+      volume: lastBar ? lastBar.volume : (s.volume ?? 0),
+      amount: 0,
+      turnover: 0,
+      circulateCap: 0,
+      totalCap: 0,
+      netInflow: 0,
+      high: lastBar ? lastBar.high : 0,
+      low: lastBar ? lastBar.low : 0,
+      open: lastBar ? lastBar.open : 0,
+      preClose: lastBar ? lastBar.close : (s.price ?? 0),
+      market: stock.market,
+    };
   }
 
   // 确保股票在数据库中存在
