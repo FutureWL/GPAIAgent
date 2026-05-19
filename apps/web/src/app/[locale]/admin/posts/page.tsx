@@ -156,7 +156,9 @@ export default function PostsPage() {
                           <span className="font-medium text-sm line-clamp-1">{post.title}</span>
                         </div>
                       </TableCell>
-                      <TableCell className="text-muted-foreground text-sm">{post.author}</TableCell>
+                      <TableCell className="text-muted-foreground text-sm">
+                        {typeof post.author === 'string' ? post.author : (post.author as { username: string }).username}
+                      </TableCell>
                       <TableCell>
                         <Badge className={st.className}>{st.label}</Badge>
                       </TableCell>
