@@ -1,33 +1,27 @@
 "use client";
 
-import React from "react";
-import { List } from "@refinedev/antd";
-import { Table, Space, Button, Typography } from "antd";
-import { EditOutlined, DeleteOutlined } from "@ant-design/icons";
-import type { IResourceComponentsProps } from "@refinedev/core";
+import React from 'react';
+import { CreditCard } from 'lucide-react';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 
-const { Title } = Typography;
-
-export default function 会员管理ListPage() {
+export default function MembershipsPage() {
   return (
-    <>
-      <Title level={3}>会员管理</Title>
-      <List>
-        <Table dataSource={[]} rowKey="id">
-          <Table.Column dataIndex="id" title="ID" width={80} />
-          <Table.Column dataIndex="createdAt" title="创建时间" width={180} />
-          <Table.Column
-            title="操作"
-            width={120}
-            render={() => (
-              <Space size="small">
-                <Button icon=<EditOutlined /> size="small" />
-                <Button icon=<DeleteOutlined /> size="small" danger />
-              </Space>
-            )}
-          />
-        </Table>
-      </List>
-    </>
+    <div className="space-y-6">
+      <div className="flex items-center justify-between">
+        <h1 className="text-2xl font-bold tracking-tight">会员管理</h1>
+      </div>
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-base font-medium">会员列表</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="flex flex-col items-center justify-center py-12 text-muted-foreground">
+            <CreditCard className="h-10 w-10 mb-3 opacity-30" />
+            <p className="text-sm">暂无会员数据</p>
+          </div>
+        </CardContent>
+      </Card>
+    </div>
   );
 }

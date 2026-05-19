@@ -51,7 +51,7 @@ export class AuthService {
       },
     });
 
-    await this.setAuthCookies(res, { id: user.id, username: user.username });
+    await this.setAuthCookies(res, { id: user.id, username: user.username, role: user.role });
 
     return {
       id: user.id,
@@ -69,7 +69,7 @@ export class AuthService {
 
     // 开发环境 bypass：devtest / devpass123
     if (process.env.NODE_ENV !== 'production' && params.username === 'devtest' && params.password === 'devpass123') {
-      await this.setAuthCookies(res, { id: user.id, username: user.username });
+      await this.setAuthCookies(res, { id: user.id, username: user.username, role: user.role });
       return { id: user.id, username: user.username, name: user.name, avatar: user.avatar };
     }
 
@@ -78,7 +78,7 @@ export class AuthService {
       throw new UnauthorizedException('Invalid username or password');
     }
 
-    await this.setAuthCookies(res, { id: user.id, username: user.username });
+    await this.setAuthCookies(res, { id: user.id, username: user.username, role: user.role });
 
     return {
       id: user.id,
@@ -185,17 +185,17 @@ export class AuthService {
       throw new UnauthorizedException('User not found');
     }
 
-    await this.setAuthCookies(res, { id: user.id, username: user.username });
+    await this.setAuthCookies(res, { id: user.id, username: user.username, role: user.role });
   }
 
-  private async setAuthCookies(res: Response, user: { id: string; username: string }): Promise<void> {
+  private async setAuthCookies(res: Response, user: { id: string; username: string; role: string }): Promise<void> {
     const accessSecret = this.configService.get<string>('JWT_ACCESS_SECRET');
     if (!accessSecret) throw new Error('JWT_ACCESS_SECRET is not configured');
     const refreshSecret = this.configService.get<string>('JWT_REFRESH_SECRET');
     if (!refreshSecret) throw new Error('JWT_REFRESH_SECRET is not configured');
     const isProd = this.configService.get<string>('NODE_ENV') === 'production';
 
-    const payload: JwtPayload = { sub: user.id, username: user.username };
+    const payload: JwtPayload = { sub: user.id, username: user.username, role: user.role };
 
     const accessToken = await this.jwtService.signAsync(payload, {
       secret: accessSecret,

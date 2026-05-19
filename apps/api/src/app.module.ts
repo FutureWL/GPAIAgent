@@ -10,6 +10,7 @@ import { MembershipModule } from './membership/membership.module';
 import { AiModule } from './ai/ai.module';
 import { PostsModule } from './posts/posts.module';
 import { MarketSyncModule } from './market-sync/market-sync.module';
+import { AdminModule } from './admin/admin.module';
 import { HealthController } from './health/health.controller';
 
 @Module({
@@ -27,7 +28,9 @@ import { HealthController } from './health/health.controller';
     MembershipModule,
     AiModule,
     PostsModule,
-    MarketSyncModule,  ],
+    MarketSyncModule,
+    AdminModule,
+  ],
   controllers: [HealthController],
 })
 export class AppModule {}

@@ -32,6 +32,22 @@ async function main() {
     return;
   }
 
+  // 1b. 确保有 admin 用户
+  const existingAdmin = await prisma.user.findFirst({ where: { username: 'admin' } });
+  if (!existingAdmin) {
+    await prisma.user.create({
+      data: {
+        username: 'admin',
+        passwordHash: '$2b$10$K8Q.8aGZ8V8Q.8aGZ8V8QO', // 占位，生产环境请修改密码
+        name: '管理员',
+        role: 'ADMIN',
+      },
+    });
+    console.log('  ✅ 创建管理员用户 admin');
+  } else {
+    console.log('  ✓ 管理员用户 admin 已存在，跳过');
+  }
+
   // 2. Seed 博文（如果还没有的话）
   const existingPosts = await prisma.post.count();
   if (existingPosts === 0) {
