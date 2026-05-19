@@ -4,7 +4,6 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useState } from 'react';
 import { Icon, icons } from '@/components/ui/icon';
-import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 
@@ -45,7 +44,12 @@ const MEMBERSHIP_BADGE_VARIANTS: Record<string, 'default' | 'secondary'> = {
 
 export default function Sidebar({ locale, me }: SidebarProps) {
   const pathname = usePathname();
-  const [collapsed, setCollapsed] = useState(false);
+  const [collapsed, setCollapsed] = useState(() => {
+    if (typeof window !== 'undefined') {
+      return localStorage.getItem('sidebar-collapsed') === 'true';
+    }
+    return false;
+  });
 
   const isActive = (href: string) => pathname === `/${locale}${href}` || pathname.startsWith(`/${locale}${href}/`);
   const displayName = me?.name || me?.username || '';
@@ -149,13 +153,17 @@ export default function Sidebar({ locale, me }: SidebarProps) {
       {/* Collapse button — uses ChevronLeft/Right directly from lucide (no wrapper needed) */}
       <div className={`p-3 border-t border-border ${collapsed ? 'flex justify-center' : ''}`}>
         <button
-          onClick={() => setCollapsed(!collapsed)}
+          onClick={() => {
+            const next = !collapsed;
+            setCollapsed(next);
+            localStorage.setItem('sidebar-collapsed', String(next));
+          }}
           className="inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium transition-colors hover:bg-accent hover:text-accent-foreground h-10 w-10 flex-shrink-0"
           title={isZh ? (collapsed ? '展开' : '收起') : (collapsed ? 'Expand' : 'Collapse')}
         >
           {collapsed
-            ? <ChevronRight size={16} />
-            : <><ChevronLeft size={16} /><span className="text-xs">{isZh ? '收起' : 'Collapse'}</span></>
+            ? <Icon name={icons.ChevronRight} size={16} />
+            : <><Icon name={icons.ChevronLeft} size={16} /><span className="text-xs">{isZh ? '收起' : 'Collapse'}</span></>
           }
         </button>
       </div>

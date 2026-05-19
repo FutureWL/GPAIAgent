@@ -3,41 +3,67 @@
 import React, { useState } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
-import {
-  LayoutDashboard,
-  Users,
-  FileText,
-  MessageSquare,
-  CreditCard,
-  TrendingUp,
-  BotMessageSquare,
-  ChevronLeft,
-  ChevronRight,
-  LogOut,
-  ShieldCheck,
-} from 'lucide-react';
+import { useLocale } from 'next-intl';
 import { Icon, icons } from '@/components/ui/icon';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 
-const navItems = [
-  { href: '/zh/admin', label: '仪表盘', icon: LayoutDashboard, end: true },
-  { href: '/zh/admin/users', label: '用户管理', icon: Users },
-  { href: '/zh/admin/posts', label: '博客管理', icon: FileText },
-  { href: '/zh/admin/comments', label: '评论管理', icon: MessageSquare },
-  { href: '/zh/admin/memberships', label: '会员管理', icon: CreditCard },
-  { href: '/zh/admin/stocks', label: '股票管理', icon: TrendingUp },
-  { href: '/zh/admin/ai-generations', label: 'AI 生成记录', icon: BotMessageSquare },
+const NAV_ITEMS = (locale: string) => [
+  {
+    href: `/${locale}/admin`,
+    labelZh: '仪表盘',
+    labelEn: 'Dashboard',
+    iconName: 'LayoutDashboard',
+    end: true,
+  },
+  {
+    href: `/${locale}/admin/users`,
+    labelZh: '用户管理',
+    labelEn: 'User Management',
+    iconName: 'Users',
+  },
+  {
+    href: `/${locale}/admin/posts`,
+    labelZh: '博客管理',
+    labelEn: 'Blog Management',
+    iconName: 'FileText',
+  },
+  {
+    href: `/${locale}/admin/comments`,
+    labelZh: '评论管理',
+    labelEn: 'Comments',
+    iconName: 'MessageSquare',
+  },
+  {
+    href: `/${locale}/admin/memberships`,
+    labelZh: '会员管理',
+    labelEn: 'Memberships',
+    iconName: 'CreditCard',
+  },
+  {
+    href: `/${locale}/admin/stocks`,
+    labelZh: '股票管理',
+    labelEn: 'Stock Management',
+    iconName: 'TrendingUp',
+  },
+  {
+    href: `/${locale}/admin/ai-generations`,
+    labelZh: 'AI 生成记录',
+    labelEn: 'AI Generations',
+    iconName: 'BotMessageSquare',
+  },
 ];
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
+  const locale = useLocale() as 'zh' | 'en';
   const [collapsed, setCollapsed] = useState(false);
   const pathname = usePathname();
   const router = useRouter();
+  const navItems = NAV_ITEMS(locale);
 
   const handleLogout = () => {
     document.cookie = 'gpai_access_token=; Max-Age=0; path=/';
-    router.push('/zh/login');
+    router.push(`/${locale}/login`);
   };
 
   return (
@@ -54,7 +80,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
           <Icon name={icons.ShieldCheck} className="h-5 w-5 text-primary shrink-0" />
           {!collapsed && (
             <span className="ml-2 text-sm font-bold tracking-wide text-foreground">
-              GPAI 管理后台
+              GPAI {locale === 'zh' ? '管理后台' : 'Admin'}
             </span>
           )}
         </div>
@@ -75,8 +101,12 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                       : 'text-muted-foreground hover:bg-accent hover:text-accent-foreground'
                   )}
                 >
-                  <item.icon className="h-4 w-4 shrink-0" />
-                  {!collapsed && <span className="ml-3">{item.label}</span>}
+                  <Icon name={item.iconName as any} className="h-4 w-4 shrink-0" />
+                  {!collapsed && (
+                    <span className="ml-3">
+                      {locale === 'zh' ? item.labelZh : item.labelEn}
+                    </span>
+                  )}
                 </div>
               </Link>
             );
@@ -105,7 +135,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
         {/* Header */}
         <header className="flex items-center justify-between h-14 border-b border-border bg-card px-6">
           <div className="text-sm text-muted-foreground">
-            管理控制台
+            {locale === 'zh' ? '管理控制台' : 'Admin Console'}
           </div>
           <Button
             variant="ghost"
@@ -113,12 +143,11 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
             onClick={handleLogout}
             className="text-muted-foreground hover:text-destructive"
           >
-            <LogOut className="h-4 w-4 mr-1.5" />
-            退出登录
+            <Icon name={icons.LogOut} className="h-4 w-4 mr-1.5" />
+            {locale === 'zh' ? '退出登录' : 'Sign Out'}
           </Button>
         </header>
 
-        {/* Content — Providers moved to root layout to avoid duplicate Toaster */}
         <main className="flex-1 overflow-y-auto p-6">
           {children}
         </main>
