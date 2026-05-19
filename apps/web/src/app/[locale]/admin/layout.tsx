@@ -1,135 +1,128 @@
 'use client';
 
-import 'antd/dist/reset.css';
-import React from 'react';
-import { Layout, Menu, Avatar, Dropdown, theme } from 'antd';
-import {
-  UserOutlined,
-  FileTextOutlined,
-  CreditCardOutlined,
-  StockOutlined,
-  RobotOutlined,
-  CommentOutlined,
-  MenuFoldOutlined,
-  MenuUnfoldOutlined,
-  LogoutOutlined,
-  DashboardOutlined,
-} from '@ant-design/icons';
-import type { MenuProps } from 'antd';
+import React, { useState } from 'react';
+import { Providers } from '@/components/providers';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
+import {
+  LayoutDashboard,
+  Users,
+  FileText,
+  MessageSquare,
+  CreditCard,
+  TrendingUp,
+  BotMessageSquare,
+  ChevronLeft,
+  ChevronRight,
+  LogOut,
+  ShieldCheck,
+} from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { cn } from '@/lib/utils';
 
-const { Header, Sider, Content } = Layout;
+const navItems = [
+  { href: '/zh/admin', label: '仪表盘', icon: LayoutDashboard, end: true },
+  { href: '/zh/admin/users', label: '用户管理', icon: Users },
+  { href: '/zh/admin/posts', label: '博客管理', icon: FileText },
+  { href: '/zh/admin/comments', label: '评论管理', icon: MessageSquare },
+  { href: '/zh/admin/memberships', label: '会员管理', icon: CreditCard },
+  { href: '/zh/admin/stocks', label: '股票管理', icon: TrendingUp },
+  { href: '/zh/admin/ai-generations', label: 'AI 生成记录', icon: BotMessageSquare },
+];
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
-  const [collapsed, setCollapsed] = React.useState(false);
+  const [collapsed, setCollapsed] = useState(false);
   const pathname = usePathname();
   const router = useRouter();
-  const {
-    token: { colorBgContainer, borderRadiusLG },
-  } = theme.useToken();
 
   const handleLogout = () => {
     document.cookie = 'gpai_access_token=; Max-Age=0; path=/';
     router.push('/zh/login');
   };
 
-  const menuItems: MenuProps['items'] = [
-    {
-      key: 'dashboard',
-      icon: <DashboardOutlined />,
-      label: <Link href="/zh/admin">仪表盘</Link>,
-    },
-    { type: 'divider' },
-    {
-      key: 'users',
-      icon: <UserOutlined />,
-      label: <Link href="/zh/admin/users">用户管理</Link>,
-    },
-    {
-      key: 'posts',
-      icon: <FileTextOutlined />,
-      label: <Link href="/zh/admin/posts">博客管理</Link>,
-    },
-    {
-      key: 'comments',
-      icon: <CommentOutlined />,
-      label: <Link href="/zh/admin/comments">评论管理</Link>,
-    },
-    {
-      key: 'memberships',
-      icon: <CreditCardOutlined />,
-      label: <Link href="/zh/admin/memberships">会员管理</Link>,
-    },
-    {
-      key: 'stocks',
-      icon: <StockOutlined />,
-      label: <Link href="/zh/admin/stocks">股票管理</Link>,
-    },
-    {
-      key: 'ai-generations',
-      icon: <RobotOutlined />,
-      label: <Link href="/zh/admin/ai-generations">AI 生成记录</Link>,
-    },
-  ];
-
-  const userMenuItems: MenuProps['items'] = [
-    {
-      key: 'logout',
-      icon: <LogoutOutlined />,
-      label: '退出登录',
-      onClick: handleLogout,
-    },
-  ];
-
   return (
-    <Layout style={{ minHeight: '100vh' }}>
-      <Sider trigger={null} collapsible collapsed={collapsed} theme="dark">
-        <div style={{
-          height: 64,
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          color: '#fff',
-          fontSize: collapsed ? 14 : 18,
-          fontWeight: 'bold',
-          letterSpacing: 1,
-        }}>
-          {collapsed ? 'GP' : 'GPAI 管理后台'}
+    <div className="flex h-screen bg-background">
+      {/* Sidebar */}
+      <aside
+        className={cn(
+          'flex flex-col bg-muted border-r border-border transition-all duration-200',
+          collapsed ? 'w-16' : 'w-56'
+        )}
+      >
+        {/* Logo */}
+        <div className="flex items-center h-14 border-b border-border px-3">
+          <ShieldCheck className="h-5 w-5 text-primary shrink-0" />
+          {!collapsed && (
+            <span className="ml-2 text-sm font-bold tracking-wide text-foreground">
+              GPAI 管理后台
+            </span>
+          )}
         </div>
-        <Menu
-          theme="dark"
-          mode="inline"
-          selectedKeys={[pathname]}
-          items={menuItems}
-          style={{ marginTop: 8 }}
-        />
-      </Sider>
-      <Layout>
-        <Header style={{ padding: '0 24px', background: colorBgContainer, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-          <div>
-            {React.createElement(collapsed ? MenuUnfoldOutlined : MenuFoldOutlined, {
-              style: { fontSize: 18, cursor: 'pointer' },
-              onClick: () => setCollapsed(!collapsed),
-            })}
-          </div>
-          <Dropdown menu={{ items: userMenuItems }} placement="bottomRight">
-            <Avatar icon={<UserOutlined />} style={{ cursor: 'pointer' }} />
-          </Dropdown>
-        </Header>
-        <Content style={{ margin: '16px 16px' }}>
-          <div
-            style={{
-              padding: 24,
-              minHeight: 360,
-              background: colorBgContainer,
-              borderRadius: borderRadiusLG,
-            }}
+
+        {/* Nav */}
+        <nav className="flex-1 py-2 overflow-y-auto">
+          {navItems.map((item) => {
+            const isActive = item.end
+              ? pathname === item.href
+              : pathname.startsWith(item.href);
+            return (
+              <Link key={item.href} href={item.href}>
+                <div
+                  className={cn(
+                    'flex items-center mx-2 px-3 py-2 rounded-md text-sm transition-colors cursor-pointer',
+                    isActive
+                      ? 'bg-primary text-primary-foreground font-medium'
+                      : 'text-muted-foreground hover:bg-accent hover:text-accent-foreground'
+                  )}
+                >
+                  <item.icon className="h-4 w-4 shrink-0" />
+                  {!collapsed && <span className="ml-3">{item.label}</span>}
+                </div>
+              </Link>
+            );
+          })}
+        </nav>
+
+        {/* Collapse toggle */}
+        <div className="border-t border-border p-2">
+          <Button
+            variant="ghost"
+            size="sm"
+            className="w-full justify-center"
+            onClick={() => setCollapsed(!collapsed)}
           >
-            {children}
+            {collapsed ? (
+              <ChevronRight className="h-4 w-4" />
+            ) : (
+              <ChevronLeft className="h-4 w-4" />
+            )}
+          </Button>
+        </div>
+      </aside>
+
+      {/* Main */}
+      <div className="flex flex-col flex-1 overflow-hidden">
+        {/* Header */}
+        <header className="flex items-center justify-between h-14 border-b border-border bg-card px-6">
+          <div className="text-sm text-muted-foreground">
+            管理控制台
           </div>
-        </Content>
-      </Layout>
-    </Layout>
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={handleLogout}
+            className="text-muted-foreground hover:text-destructive"
+          >
+            <LogOut className="h-4 w-4 mr-1.5" />
+            退出登录
+          </Button>
+        </header>
+
+        {/* Content */}
+        <main className="flex-1 overflow-y-auto p-6">
+          <Providers>{children}</Providers>
+        </main>
+      </div>
+    </div>
   );
 }

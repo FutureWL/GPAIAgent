@@ -7,6 +7,11 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+enum UserRole {
+  USER   // 普通用户
+  ADMIN  // 管理员
+}
+
 model User {
   id           String     @id @default(cuid())
   email        String?    @unique
@@ -17,6 +22,8 @@ model User {
   updatedAt    DateTime   @updatedAt
   passwordHash String
   username     String     @unique
+  role         UserRole   @default(USER)
+  disabled     Boolean    @default(false) // 账号是否禁用
 
   comments     Comment[]
   likes        Like[]
@@ -29,6 +36,7 @@ model User {
   postLikes     PostLike[]     @relation("PostLikeUser")
   postComments  PostComment[]  @relation("PostCommentUser")
   postBookmarks PostBookmark[] @relation("PostBookmarkUser")
+  auditLogs    AuditLog[]      @relation("AuditLogAdmin")
 }
 
 model Stock {
@@ -135,6 +143,7 @@ model Strategy {
   stockCode   String?  // 关联股票代码，可选
   riskLevel   String?  // risk_high / profit_high / neutral / avoid
   viewCount   Int      @default(0)
+  status      String   @default("pending_review") // pending_review | published | rejected | removed
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
   authorId    String
@@ -375,4 +384,19 @@ model StockScreenResult {
   stock  Stock       @relation(fields: [stockId], references: [id])
 
   @@unique([screenId, stockId])
+}
+
+// ============ 审计日志 ============
+
+model AuditLog {
+  id         String   @id @default(cuid())
+  adminId    String
+  action     String   // USER_ROLE_CHANGE | POST_REVIEW | STRATEGY_REVIEW | STOCK_SYNC | USER_DISABLE
+  targetType String   // User | Post | Strategy | Stock | SyncJob
+  targetId   String
+  detail     Json?    // { before, after, reason }
+  ip         String?
+  createdAt  DateTime @default(now())
+
+  admin User @relation("AuditLogAdmin", fields: [adminId], references: [id])
 }
