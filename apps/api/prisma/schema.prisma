@@ -39,21 +39,55 @@ model User {
   auditLogs    AuditLog[]      @relation("AuditLogAdmin")
 }
 
+// 股票市场
+enum StockMarket {
+  SH  // 上海
+  SZ  // 深圳
+  BJ  // 北京
+}
+
+// 股票类型
+enum StockType {
+  stock  // 普通股
+  bond   // 债券
+  fund   // 基金
+  index  // 指数
+  etf    // ETF
+}
+
+// 上市状态
+enum StockStatus {
+  LISTED    // 正常上市
+  SUSPENDED // 暂停上市
+  DELISTED  // 退市
+}
+
 model Stock {
   id        String   @id @default(cuid())
-  code      String   @unique // 如 600519
+  code      String             // 如 "600519"（纯数字，无前缀）
   name      String             // 如 贵州茅台
-  market    String             // sh / sz / bj
-  type      String   @default("stock") // stock / bond / fund / index
+  market    StockMarket       // SH / SZ / BJ
+  type      StockType @default(stock) // stock / bond / fund / index / etf
+  status    StockStatus @default(LISTED) // LISTED / SUSPENDED / DELISTED
+  industry  String?           // 申万行业一级，如 "食品饮料"
+  subIndustry String?          // 申万行业二级，如 "白酒"
+  listDate  DateTime?          // 上市日期
+  totalShares Float?           // 总股本（万股）
+  circulateShares Float?       // 流通股本（万股）
   createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   userStocks    UserStock[]
   dailyData     StockDaily[]
   periodKlines  StockPeriodKline[]
   quotes        StockQuote[]
-  strategies    Strategy[]
-  aiGenerations AIGeneration[]
   stockScreenResults StockScreenResult[]
+
+  // code + market 联合唯一（解决同码不同市场问题，如 sh000001 vs sz000001）
+  @@unique([code, market])
+  @@index([market, status])
+  @@index([industry])
+  @@index([type])
 }
 
 model UserStock {
@@ -152,7 +186,6 @@ model Strategy {
   comments   Comment[]
   likes      Like[]
   author     User      @relation(fields: [authorId], references: [id])
-  stock      Stock?    @relation(fields: [stockCode], references: [code])
   aiGenerations AIGeneration[]
 }
 
@@ -205,7 +238,6 @@ model AIGeneration {
   createdAt  DateTime @default(now())
 
   user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  stock      Stock?   @relation(fields: [stockCode], references: [code])
   strategy   Strategy? @relation(fields: [strategyId], references: [id])
 }
 

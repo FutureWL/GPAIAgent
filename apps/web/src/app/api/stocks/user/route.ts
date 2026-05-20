@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 
-const NESTJS_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
+const NESTJS_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:3002';
 
 async function nestjsFetch(path: string, request: NextRequest, options?: RequestInit) {
   const headers: Record<string, string> = {

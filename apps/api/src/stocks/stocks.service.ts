@@ -393,7 +393,7 @@ export class StocksService {
   // year: 将 stockDaily 按年聚合
   // minute: 每条 stockDaily 展开为一个"分时点"（09:30 时刻，OHLC = close）
   private async klineFromDailyDb(code: string, period: 'day' | '5day' | 'week' | 'month' | 'season' | 'year' | 'minute', count = 120): Promise<KBar[]> {
-    const stock = await this.prismaService.stock.findUnique({ where: { code } });
+    const stock = await this.prismaService.stock.findFirst({ where: { code } });
     if (!stock) return [];
 
     const dbRecords = await this.prismaService.stockDaily.findMany({
@@ -511,7 +511,7 @@ export class StocksService {
     if (qt) return qt;
 
     // Fallback 1: 从 DB 取最新日K数据
-    const stock = await this.prismaService.stock.findUnique({ where: { code } });
+    const stock = await this.prismaService.stock.findFirst({ where: { code } });
     if (!stock) return null;
 
     const bars = await this.prismaService.stockPeriodKline.findMany({
@@ -576,9 +576,9 @@ export class StocksService {
   // 确保股票在数据库中存在
   async ensureStock(code: string, name: string, market: string, type = 'stock') {
     return this.prismaService.stock.upsert({
-      where: { code },
-      create: { code, name, market, type },
-      update: {},
+      where: { code_market: { code, market: market as any } },
+      create: { code, name, market: market as any, type: type as any },
+      update: { name },
     });
   }
 
@@ -661,7 +661,7 @@ export class StocksService {
       await this.ensureStock(mock.code, mock.name, mock.market, mock.type);
     }
 
-    const stock = await this.prismaService.stock.findUnique({ where: { code } });
+    const stock = await this.prismaService.stock.findFirst({ where: { code } });
     if (!stock) {
       throw new NotFoundException('股票不存在');
     }
@@ -731,7 +731,7 @@ export class StocksService {
   async addUserStock(userId: string, stockCode: string) {
     const cleanCode = stockCode.replace(/^(sh|sz)/, '');
 
-    let stock = await this.prismaService.stock.findUnique({ where: { code: cleanCode } });
+    let stock = await this.prismaService.stock.findFirst({ where: { code: cleanCode } });
 
     if (!stock) {
       const qt = await this.fetchRealTimeQuote(cleanCode);
@@ -754,7 +754,7 @@ export class StocksService {
   }
 
   async removeUserStock(userId: string, stockCode: string) {
-    const stock = await this.prismaService.stock.findUnique({ where: { code: stockCode } });
+    const stock = await this.prismaService.stock.findFirst({ where: { code: stockCode } });
     if (!stock) return { success: true };
     await this.prismaService.userStock.deleteMany({
       where: { userId, stockId: stock.id },
@@ -764,7 +764,7 @@ export class StocksService {
 
   // 获取股票日线历史数据（从本地数据库）
   async getStockDaily(stockCode: string, days = 250) {
-    const stock = await this.prismaService.stock.findUnique({ where: { code: stockCode } });
+    const stock = await this.prismaService.stock.findFirst({ where: { code: stockCode } });
     if (!stock) throw new NotFoundException('股票不存在');
 
     const records = await this.prismaService.stockDaily.findMany({

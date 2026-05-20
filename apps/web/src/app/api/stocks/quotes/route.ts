@@ -6,7 +6,7 @@ export async function GET(request: NextRequest) {
 
   const apiUrl = process.env.NEXT_PUBLIC_API_URL
     ? `${process.env.NEXT_PUBLIC_API_URL}/stocks/quotes?codes=${codes}`
-    : `http://localhost:3001/stocks/quotes?codes=${codes}`;
+    : `${process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:3002'}/stocks/quotes?codes=${codes}`;
 
   try {
     const resp = await fetch(apiUrl, { signal: AbortSignal.timeout(10000) });

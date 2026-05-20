@@ -20,7 +20,7 @@ export async function getMe(): Promise<MeUser | null> {
     const cookieStore = await cookies();
     const token = cookieStore.get('gpai_access_token');
     if (!token) return null;
-    const res = await fetch(`http://localhost:3001/auth/me`, {
+    const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/auth/me`, {
       headers: { Cookie: `gpai_access_token=${token.value}` },
       cache: 'no-store',
     });
@@ -36,7 +36,7 @@ export async function getStats() {
     const cookieStore = await cookies();
     const token = cookieStore.get('gpai_access_token');
     if (!token) return null;
-    const res = await fetch(`http://localhost:3001/auth/stats`, {
+    const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/auth/stats`, {
       headers: { Cookie: `gpai_access_token=${token.value}` },
       cache: 'no-store',
     });

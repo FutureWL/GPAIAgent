@@ -206,7 +206,7 @@ export class MarketSyncService implements OnModuleInit {
 
   /** 同步单只股票的实时行情快照到 StockQuote */
   async syncOneQuote(code: string): Promise<boolean> {
-    const stock = await this.prisma.stock.findUnique({ where: { code } });
+    const stock = await this.prisma.stock.findFirst({ where: { code } });
     if (!stock) return false;
 
     // 东方财富实时行情
@@ -265,7 +265,7 @@ export class MarketSyncService implements OnModuleInit {
 
   /** 同步日K线（增量：只写入数据库没有的日期） */
   async syncDailyKline(code: string): Promise<number> {
-    const stock = await this.prisma.stock.findUnique({ where: { code } });
+    const stock = await this.prisma.stock.findFirst({ where: { code } });
     if (!stock) return 0;
 
     const qtCode = code.startsWith('6') || code.startsWith('5') ? `sh${code}` : `sz${code}`;
@@ -302,7 +302,7 @@ export class MarketSyncService implements OnModuleInit {
 
   /** 同步多周期K线（周/月/季/年） */
   async syncPeriodKline(code: string, period: string): Promise<number> {
-    const stock = await this.prisma.stock.findUnique({ where: { code } });
+    const stock = await this.prisma.stock.findFirst({ where: { code } });
     if (!stock) return 0;
 
     const qtCode = code.startsWith('6') || code.startsWith('5') ? `sh${code}` : `sz${code}`;
@@ -343,7 +343,7 @@ export class MarketSyncService implements OnModuleInit {
 
   /** 同步分钟K线（东方财富接口，强制 IPv4） */
   async syncMinuteKline(code: string, period: string): Promise<number> {
-    const stock = await this.prisma.stock.findUnique({ where: { code } });
+    const stock = await this.prisma.stock.findFirst({ where: { code } });
     if (!stock) return 0;
 
     const kltMap: Record<string, number> = { '1min': 1, '5min': 5, '15min': 15, '30min': 30, '60min': 60 };

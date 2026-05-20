@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 
-const DEV_API = 'http://localhost:3001';
+const DEV_API = process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:3002';
 
 export async function GET(
   request: NextRequest,
